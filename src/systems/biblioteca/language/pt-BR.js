@@ -226,4 +226,45 @@ module.exports = [
   { id: "trigger_member_joined", render: () => "👋 Membro entrou" },
   { id: "trigger_button_clicked", render: () => "🖱️ Botão clicado" },
   { id: "trigger_scheduled", render: () => "🕐 Agendado" },
+
+  // ---- Biblioteca de Embeds & Components V2 ----
+  { id: "err_no_permission", render: () => "Sem permissão." },
+  { id: "err_version_must_be_higher", render: (ctx) => `A versão ${ctx.newVersion} deve ser maior que a atual (${ctx.currentVersion}).` },
+  { id: "embeds_err_message_not_found", render: () => "Mensagem salva não encontrada neste servidor." },
+  { id: "embeds_err_entry_not_found_library", render: () => "Entrada não encontrada na biblioteca." },
+  { id: "embeds_library_footer", render: () => "Biblioteca de Embeds & Components V2" },
+
+  { id: "embeds_search_title", render: (ctx) => `# ${ctx.eAnimada} Biblioteca de Embeds & Components V2\n${ctx.filterLine}${ctx.sortLine}` },
+  { id: "embeds_detail_type", render: () => "🧩 **Tipo:**" },
+  { id: "embeds_type_embed", render: () => "📋 Embed" },
+  { id: "embeds_type_cv2", render: () => "🧩 Components V2" },
+  { id: "embeds_btn_preview", render: () => "👁️ Preview" },
+
+  { id: "embeds_no_saved_title", render: (ctx) => `# ${ctx.eEmburrada} Nenhuma mensagem salva` },
+  { id: "embeds_no_saved_publish_desc", render: () => "Crie uma mensagem com `/criar embed` ou `/criar componentsv2` antes de publicar~" },
+  { id: "embeds_no_saved_update_desc", render: () => "Crie uma mensagem com `/criar embed` ou `/criar componentsv2` antes de atualizar~" },
+
+  { id: "embeds_publish_title", render: (ctx) => `# ${ctx.eAnimada} Publicar na Biblioteca\n**Autor:** ${ctx.authorName}\n\nEscolha a mensagem salva que será publicada e clique em **Publicar** quando estiver pronto!` },
+  { id: "embeds_selected_message_label", render: (ctx) => `**📨 Mensagem selecionada:**\n${ctx.name}` },
+  { id: "embeds_no_message_selected", render: () => "_Nenhuma mensagem selecionada ainda_" },
+  { id: "embeds_select_message_placeholder", render: () => "✨ Selecione a mensagem salva~" },
+
+  { id: "embeds_publish_success", render: (ctx) =>
+    `# ${ctx.eFesta} Publicado com sucesso!\n**${ctx.entryName}** já está disponível na biblioteca!\n\n` +
+    `> 🆔 **ID:** \`${ctx.libId}\`\n> 🧩 **Tipo:** ${ctx.typeLabel}` },
+
+  { id: "embeds_update_panel_title", render: (ctx) =>
+    `# ${ctx.ePensando} Atualizar — ${ctx.entryName}\nVersão atual: \`${ctx.version}\`\n\nSelecione a mensagem salva com o novo conteúdo e clique em **Confirmar atualização**~` },
+  { id: "embeds_update_success", render: (ctx) =>
+    `# ${ctx.eFesta} Atualizado para v${ctx.version}!\n**${ctx.entryName}** foi atualizado.\nOs instaladores serão notificados via DM~` },
+
+  { id: "embeds_my_pubs_empty", render: (ctx) => `# ${ctx.ePensando} Minhas Publicações\nVocê ainda não publicou nada na biblioteca de embeds.\nUse \`/biblioteca embeds publicar\` para começar~!` },
+
+  { id: "embeds_install_success", render: (ctx) =>
+    `# ${ctx.eFesta} Instalado!\n**${ctx.entryName}** foi salvo como rascunho neste servidor.\n\n` +
+    `> 🆔 **ID do rascunho:** \`${ctx.savedId}\`\n> Use \`/criar editar id:${ctx.savedId}\` para editar e enviar quando quiser~` },
+
+  { id: "publish_type_chooser_title", render: (ctx) => `# ${ctx.eAnimada} O que você quer publicar na biblioteca?` },
+  { id: "publish_type_flow", render: () => "Fluxo(s)" },
+  { id: "publish_type_message", render: () => "Embed / Components V2" },
 ];

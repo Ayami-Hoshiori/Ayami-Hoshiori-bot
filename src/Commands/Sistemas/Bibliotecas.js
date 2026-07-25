@@ -3,6 +3,7 @@
 const DiscordRequest = require('../../function/DiscordRequest.js');
 const getPerm        = require('../../function/Utils/GetPerm.js');
 const { localeCtx } = require('../../function/Utils/ctxLocale.js');
+const { buildCV2Payload } = require('../../function/Utils/CV2Serializer.js');
 
 
 const CATEGORIES = [
@@ -524,12 +525,20 @@ module.exports = {
         type:        1,
         name:        'pesquisar',
         name_localizations: { 'en-US': "search", 'en-GB': "search", 'es-ES': "buscar" },
-        description: 'Pesquisa fluxos disponíveis na biblioteca',
-        description_localizations: { 'en-US': "Search available flows in the library", 'en-GB': "Search available flows in the library", 'es-ES': "Busca flujos disponibles en la biblioteca" },
+        description: 'Pesquisa fluxos, embeds e components v2 disponíveis na biblioteca',
+        description_localizations: { 'en-US': "Search available flows, embeds and components v2 in the library", 'en-GB': "Search available flows, embeds and components v2 in the library", 'es-ES': "Busca flujos, embeds y components v2 disponibles en la biblioteca" },
         options: [
           { type: 3, name: 'nome',
           name_localizations: { 'en-US': "name", 'en-GB': "name", 'es-ES': "nombre" },      description: 'Filtrar por nome',
           description_localizations: { 'en-US': "Filter by name", 'en-GB': "Filter by name", 'es-ES': "Filtrar por nombre" },      required: false },
+          { type: 3, name: 'tipo',
+          name_localizations: { 'en-US': "type", 'en-GB': "type", 'es-ES': "tipo" }, description: 'Filtrar por tipo de publicação (vazio = tudo)',
+          description_localizations: { 'en-US': "Filter by entry type (empty = everything)", 'en-GB': "Filter by entry type (empty = everything)", 'es-ES': "Filtrar por tipo de publicacion (vacio = todo)" }, required: false,
+            choices: [
+              { name: '🔗 Fluxo', name_localizations: { 'en-US': '🔗 Flow', 'en-GB': '🔗 Flow', 'es-ES': '🔗 Flujo' }, value: 'fluxo' },
+              { name: '📋 Embed', name_localizations: { 'en-US': '📋 Embed', 'en-GB': '📋 Embed', 'es-ES': '📋 Embed' }, value: 'embed' },
+              { name: '🧩 Components V2', name_localizations: { 'en-US': '🧩 Components V2', 'en-GB': '🧩 Components V2', 'es-ES': '🧩 Components V2' }, value: 'components_v2' }
+            ] },
           { type: 3, name: 'categoria',
           name_localizations: { 'en-US': "category", 'en-GB': "category", 'es-ES': "categoria" }, description: 'Filtrar por categoria',
           description_localizations: { 'en-US': "Filter by category", 'en-GB': "Filter by category", 'es-ES': "Filtrar por categoria" }, required: false,
@@ -560,8 +569,8 @@ module.exports = {
         type:        1,
         name:        'ver',
         name_localizations: { 'en-US': "view", 'en-GB': "view", 'es-ES': "ver" },
-        description: 'Exibe detalhes de uma entrada da biblioteca',
-        description_localizations: { 'en-US': "Shows details of a library entry", 'en-GB': "Shows details of a library entry", 'es-ES': "Muestra los detalles de una entrada de la biblioteca" },
+        description: 'Exibe detalhes de uma entrada da biblioteca (embeds/CV2 mostram botão de preview)',
+        description_localizations: { 'en-US': "Shows details of a library entry (embeds/CV2 show a preview button)", 'en-GB': "Shows details of a library entry (embeds/CV2 show a preview button)", 'es-ES': "Muestra los detalles de una entrada de la biblioteca (embeds/CV2 muestran un boton de vista previa)" },
         options: [
           { type: 3, name: 'id',
           name_localizations: { 'en-US': "id", 'en-GB': "id", 'es-ES': "id" }, description: 'ID da entrada (libId)',
@@ -584,8 +593,8 @@ module.exports = {
         type:        1,
         name:        'publicar',
         name_localizations: { 'en-US': "publish", 'en-GB': "publish", 'es-ES': "publicar" },
-        description: 'Publica seus fluxos na biblioteca para a comunidade',
-        description_localizations: { 'en-US': "Publishes your flows to the library for the community", 'en-GB': "Publishes your flows to the library for the community", 'es-ES': "Publica tus flujos en la biblioteca para la comunidad" }
+        description: 'Publica um fluxo ou um embed/components v2 na biblioteca para a comunidade',
+        description_localizations: { 'en-US': "Publishes a flow or an embed/components v2 to the library for the community", 'en-GB': "Publishes a flow or an embed/components v2 to the library for the community", 'es-ES': "Publica un flujo o un embed/components v2 en la biblioteca para la comunidad" }
       },
       {
         type:        1,
@@ -657,7 +666,6 @@ module.exports = {
     const opts    = _opts(interaction);
     const userId  = interaction.member?.user?.id || interaction.user?.id;
     const guildId = interaction.guild_id;
-    const lib     = client.libraryManager;
     const e       = client.emoji;
 
     const MODAL_SUBS = ['publicar', 'atualizar', 'editar'];
@@ -667,16 +675,16 @@ module.exports = {
 
     try {
       switch (sub) {
-        case 'pesquisar': return await _pesquisar(interaction, client, lib, opts, userId, e);
-        case 'ver':       return await _ver(interaction, client, lib, opts, userId, e);
-        case 'instalar':  return await _instalar(interaction, client, lib, opts, userId, guildId, e);
-        case 'publicar':  return await _publicar(interaction, client, lib, userId, guildId, e);
-        case 'atualizar': return await _atualizar(interaction, client, lib, opts, userId, guildId, e);
-        case 'editar':    return await _editar(interaction, client, lib, opts, userId, e);
-        case 'apagar':    return await _apagar(interaction, client, lib, opts, userId, e);
-        case 'minhas':    return await _minhas(interaction, client, lib, userId, e);
-        case 'perfil':    return await _perfil(interaction, client, lib, opts, userId, e);
-        case 'destaques': return await _destaques(interaction, client, lib, e);
+        case 'pesquisar': return await _pesquisar(interaction, client, opts, userId, e);
+        case 'ver':       return await _ver(interaction, client, opts, userId, e);
+        case 'instalar':  return await _instalar(interaction, client, opts, userId, guildId, e);
+        case 'publicar':  return await _publicar(interaction, client, userId, guildId, e);
+        case 'atualizar': return await _atualizar(interaction, client, opts, userId, guildId, e);
+        case 'editar':    return await _editar(interaction, client, opts, userId, e);
+        case 'apagar':    return await _apagar(interaction, client, opts, userId, e);
+        case 'minhas':    return await _minhas(interaction, client, userId, e);
+        case 'perfil':    return await _perfil(interaction, client, opts, userId, e);
+        case 'destaques': return await _destaques(interaction, client, e);
         default: {
           const ctx = localeCtx(interaction);
           return _edit(interaction, client, cv2Payload([
@@ -693,6 +701,356 @@ module.exports = {
     }
   }
 };
+
+
+/* ════════════════════════════════════════════════════════════════════
+   CAMADA UNIFICADA — mescla Biblioteca de Fluxos + Biblioteca de
+   Embeds/Components V2 num único conjunto de comandos /biblioteca.
+   Cada função abaixo decide (por filtro explícito ou por autodetecção
+   do libId) se delega pra lógica de fluxos (_flowXxx / client.libraryManager)
+   ou de mensagens (_embedsXxx / client.messageLibraryManager).
+   ════════════════════════════════════════════════════════════════════ */
+
+/** Tenta achar uma entrada em qualquer uma das duas bibliotecas pelo libId. */
+async function _findAnyLibEntry(client, libId) {
+  const flowEntry = await client.libraryManager.getById(libId);
+  if (flowEntry) return { kind: 'fluxo', entry: flowEntry };
+
+  const msgEntry = await client.messageLibraryManager.getById(libId);
+  if (msgEntry) return { kind: msgEntry.type, entry: msgEntry }; // 'embed' | 'components_v2'
+
+  return null;
+}
+
+async function _pesquisar(interaction, client, opts, userId, e) {
+  const tipo = opts.tipo; // 'fluxo' | 'embed' | 'components_v2' | undefined (= tudo)
+
+  const wantFlows  = !tipo || tipo === 'fluxo';
+  const wantEmbeds = !tipo || tipo === 'embed' || tipo === 'components_v2';
+  const msgType    = (tipo === 'embed' || tipo === 'components_v2') ? tipo : undefined;
+
+  const baseFilters = {
+    query:    opts.nome,
+    category: opts.categoria,
+    tag:      opts.tag,
+    authorId: opts.autor,
+    sort:     opts.ordenar || 'installs'
+  };
+
+  const [flowsRes, msgsRes] = await Promise.all([
+    wantFlows  ? client.libraryManager.search({ ...baseFilters, page: 0, limit: 200 }) : { results: [] },
+    wantEmbeds ? client.messageLibraryManager.search({ ...baseFilters, type: msgType, page: 0, limit: 200 }) : { results: [] }
+  ]);
+
+  const combined = [
+    ...flowsRes.results.map(r => ({ ...r, _kind: 'fluxo' })),
+    ...msgsRes.results.map(r => ({ ...r, _kind: r.type }))
+  ];
+
+  if (!combined.length) {
+    const ctx = localeCtx(interaction);
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(
+        `# ${e.emduvida} ${client.t('biblioteca.no_results_title', ctx)}\n` +
+        client.t('biblioteca.no_results_desc', ctx)
+      )
+    ], { accentColor: COLOR.main }));
+  }
+
+  const sortKeyMap = {
+    installs: (x) => x.stats.installs,
+    rating:   (x) => x.stats.avgRating,
+    trending: (x) => x.stats.weeklyScore,
+    recent:   (x) => new Date(x.publishedAt).getTime()
+  };
+  const sortFn = sortKeyMap[baseFilters.sort] || sortKeyMap.installs;
+  combined.sort((a, b) => sortFn(b) - sortFn(a));
+
+  return _renderUnifiedSearchPage(interaction, client, combined, baseFilters, tipo, 0, userId, e);
+}
+
+async function _renderUnifiedSearchPage(interaction, client, combined, filters, tipo, page, userId, e) {
+  const ctx = localeCtx(interaction);
+  const numLocale = ctx.system?.locale || 'pt-BR';
+  const PER_PAGE = 8;
+  const pages = Math.ceil(combined.length / PER_PAGE);
+  const pageItems = combined.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+
+  const authorNames = await Promise.all(
+    pageItems.map(entry => _resolveAuthorName(
+      entry._kind === 'fluxo' ? client.libraryManager : client.messageLibraryManager,
+      entry.authorId, client, ctx, entry.authorName
+    ))
+  );
+  pageItems.forEach((entry, i) => { entry._resolvedAuthor = authorNames[i]; });
+
+  const kindIcon = (k) => k === 'fluxo' ? '🔗' : (k === 'components_v2' ? '🧩' : '📋');
+
+  const filterDesc = [];
+  if (filters.query)    filterDesc.push(`🔎 \`${filters.query}\``);
+  if (tipo)             filterDesc.push(kindIcon(tipo));
+  if (filters.category) filterDesc.push(`${CATEGORY_EMOJI[filters.category] || '📦'} ${filters.category}`);
+  if (filters.tag)      filterDesc.push(`🏷️ \`${filters.tag}\``);
+  const filterLine = filterDesc.length ? `**${client.t('biblioteca.search_filters_label', ctx)}:** ${filterDesc.join('  •  ')}\n` : '';
+
+  const sortLabels = {
+    installs: client.t('biblioteca.sort_installs', ctx),
+    rating:   client.t('biblioteca.sort_rating', ctx),
+    trending: client.t('biblioteca.sort_trending', ctx),
+    recent:   client.t('biblioteca.sort_recent', ctx)
+  };
+  const sortLine = `**${client.t('biblioteca.search_order_label', ctx)}:** ${sortLabels[filters.sort] || client.t('biblioteca.sort_installs', ctx)}`;
+
+  const lines = pageItems.map((entry, i) => {
+    const emoji = CATEGORY_EMOJI[entry.category] || '📦';
+    const stars = _stars(client, ctx, entry.stats.avgRating, entry.stats.ratingCount);
+    const num   = page * PER_PAGE + i + 1;
+    return (
+      `**${num}.** ${emoji}${kindIcon(entry._kind)} **${entry.name}** \`v${entry.version}\`\n` +
+      `> 👤 ${entry._resolvedAuthor}  •  ${client.t('biblioteca.search_installs_label', { ...ctx, count: entry.stats.installs.toLocaleString(numLocale) })}  •  ${stars}\n` +
+      `> _${entry.shortDesc || client.t('biblioteca.search_no_desc', ctx)}_`
+    );
+  }).join('\n\n');
+
+  const selectOptions = pageItems.map(entry => ({
+    label:       entry.name.slice(0, 100),
+    value:       entry.libId,
+    description: (`v${entry.version} • ${entry._resolvedAuthor} • ${client.t('biblioteca.search_installs_label', { ...ctx, count: entry.stats.installs })}`).slice(0, 100),
+    emoji:       { name: (CATEGORY_EMOJI[entry.category] || '📦').replace(/\uFE0F/g, '') }
+  }));
+
+  const sel = select(client, userId, selectOptions, client.t('biblioteca.search_select_placeholder', ctx), async (i) => {
+    await _deferUpdate(i);
+    const clicked = pageItems.find(entry => entry.libId === i.data.values[0]);
+    return _renderUnifiedDetail(i, client, clicked.libId, userId, e, clicked._kind, clicked);
+  });
+
+  const blocks = [
+    cv2Text(client.t('biblioteca.search_title', { ...ctx, eAnimada: e.animada, filterLine, sortLine })),
+    cv2Divider(),
+    cv2Text(lines),
+    cv2Divider(),
+    row(sel),
+  ];
+
+  const navBtns = [];
+  if (page > 0) {
+    navBtns.push(btn(client, userId, client.t('biblioteca.search_prev', ctx), 2, async (i) => {
+      await _deferUpdate(i);
+      return _renderUnifiedSearchPage(i, client, combined, filters, tipo, page - 1, userId, e);
+    }));
+  }
+  navBtns.push(btn(client, userId, `${page + 1} / ${pages}`, 2, async (i) => { await _deferUpdate(i); }, { disabled: true }));
+  if (page < pages - 1) {
+    navBtns.push(btn(client, userId, client.t('biblioteca.search_next', ctx), 2, async (i) => {
+      await _deferUpdate(i);
+      return _renderUnifiedSearchPage(i, client, combined, filters, tipo, page + 1, userId, e);
+    }));
+  }
+  if (navBtns.length) blocks.push(row(...navBtns));
+
+  blocks.push(cv2Divider());
+  blocks.push(cv2Text(client.t('biblioteca.search_footer', { ...ctx, total: combined.length, page: page + 1, pages })));
+
+  return _edit(interaction, client, cv2Payload(blocks, { accentColor: COLOR.library }));
+}
+
+/** Renderiza o detalhe de UMA entrada já sabendo seu tipo (delega pro render específico). */
+async function _renderUnifiedDetail(interaction, client, libId, userId, e, kind, entry = null) {
+  if (kind === 'fluxo') {
+    return _renderDetail(interaction, client, client.libraryManager, libId, userId, e, entry);
+  }
+  return _embedsRenderDetail(interaction, client, client.messageLibraryManager, libId, userId, e, entry);
+}
+
+async function _ver(interaction, client, opts, userId, e) {
+  const found = await _findAnyLibEntry(client, opts.id);
+  const ctx   = localeCtx(interaction);
+  if (!found) {
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(client.t('biblioteca.entry_not_found', { ...ctx, eEmduvida: e.emduvida }))
+    ], { accentColor: COLOR.danger }));
+  }
+  return _renderUnifiedDetail(interaction, client, opts.id, userId, e, found.kind, found.entry);
+}
+
+async function _instalar(interaction, client, opts, userId, guildId, e) {
+  const found = await _findAnyLibEntry(client, opts.id);
+  if (!found) {
+    const ctx = localeCtx(interaction);
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(client.t('biblioteca.entry_not_found', { ...ctx, eEmduvida: e.emduvida }))
+    ], { accentColor: COLOR.danger }));
+  }
+  if (found.kind === 'fluxo') {
+    return _flowInstalar(interaction, client, client.libraryManager, opts, userId, guildId, e);
+  }
+  return _embedsInstalar(interaction, client, client.messageLibraryManager, opts, userId, guildId, e);
+}
+
+async function _publicar(interaction, client, userId, guildId, e) {
+  const ctx = localeCtx(interaction);
+
+  const btnFlow = btn(client, userId, client.t('biblioteca.publish_type_flow', ctx), 1, async (i) => {
+    return _flowPublicar(i, client, client.libraryManager, userId, guildId, e);
+  }, { emoji: { name: '🔗' } });
+
+  const btnEmbed = btn(client, userId, client.t('biblioteca.publish_type_message', ctx), 1, async (i) => {
+    return _embedsPublicar(i, client, client.messageLibraryManager, userId, guildId, e);
+  }, { emoji: { name: '📋' } });
+
+  return _reply(interaction, cv2Payload([
+    cv2Text(client.t('biblioteca.publish_type_chooser_title', { ...ctx, eAnimada: e.animada })),
+    cv2Divider(),
+    row(btnFlow, btnEmbed),
+  ], { accentColor: COLOR.library }));
+}
+
+async function _atualizar(interaction, client, opts, userId, guildId, e) {
+  const found = await _findAnyLibEntry(client, opts.id);
+  if (!found) {
+    const ctx = localeCtx(interaction);
+    return _reply(interaction, cv2Payload([
+      cv2Text(client.t('biblioteca.entry_not_found_short', { ...ctx, eEmduvida: e.emduvida }))
+    ], { accentColor: COLOR.danger }));
+  }
+  if (found.kind === 'fluxo') {
+    return _flowAtualizar(interaction, client, client.libraryManager, opts, userId, guildId, e);
+  }
+  return _embedsAtualizar(interaction, client, client.messageLibraryManager, opts, userId, guildId, e);
+}
+
+async function _editar(interaction, client, opts, userId, e) {
+  const found = await _findAnyLibEntry(client, opts.id);
+  if (!found) {
+    const ctx = localeCtx(interaction);
+    return _reply(interaction, cv2Payload([
+      cv2Text(client.t('biblioteca.entry_not_found_short', { ...ctx, eEmduvida: e.emduvida }))
+    ], { accentColor: COLOR.danger }));
+  }
+  if (found.kind === 'fluxo') {
+    return _flowEditar(interaction, client, client.libraryManager, opts, userId, e);
+  }
+  return _embedsEditar(interaction, client, client.messageLibraryManager, opts, userId, e);
+}
+
+async function _apagar(interaction, client, opts, userId, e) {
+  const found = await _findAnyLibEntry(client, opts.id);
+  if (!found) {
+    const ctx = localeCtx(interaction);
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(client.t('biblioteca.entry_not_found_short', { ...ctx, eEmduvida: e.emduvida }))
+    ], { accentColor: COLOR.danger }));
+  }
+  if (found.kind === 'fluxo') {
+    return _flowApagar(interaction, client, client.libraryManager, opts, userId, e);
+  }
+  return _embedsApagar(interaction, client, client.messageLibraryManager, opts, userId, e);
+}
+
+async function _minhas(interaction, client, userId, e) {
+  const [flowEntries, msgEntries] = await Promise.all([
+    client.libraryManager.getMyPublications(userId),
+    client.messageLibraryManager.getMyPublications(userId)
+  ]);
+
+  const combined = [
+    ...flowEntries.map(entry => ({ ...entry, _kind: 'fluxo' })),
+    ...msgEntries.map(entry => ({ ...entry, _kind: entry.type }))
+  ].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+
+  const ctx = localeCtx(interaction);
+
+  if (!combined.length) {
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(client.t('biblioteca.my_pubs_empty', { ...ctx, ePensando: e.pensando }))
+    ], { accentColor: COLOR.library }));
+  }
+
+  const kindIcon = (k) => k === 'fluxo' ? '🔗' : (k === 'components_v2' ? '🧩' : '📋');
+
+  const lines = combined.map((entry, i) => {
+    const statusIcon = entry.status === 'approved' ? '🟢' : entry.status === 'pending' ? '🟡' : '🔴';
+    const emoji      = CATEGORY_EMOJI[entry.category] || '📦';
+    return (
+      `**${i + 1}.** ${statusIcon} ${emoji}${kindIcon(entry._kind)} **${entry.name}** \`v${entry.version}\`\n` +
+      `> ${client.t('biblioteca.my_pubs_installs', { ...ctx, count: entry.stats.installs })}  •  ${_stars(client, ctx, entry.stats.avgRating, 0)}`
+    );
+  }).join('\n\n');
+
+  const selectOptions = combined.slice(0, 25).map(entry => ({
+    label:       entry.name.slice(0, 100),
+    value:       entry.libId,
+    description: (`v${entry.version} • ${client.t('biblioteca.my_pubs_installs', { ...ctx, count: entry.stats.installs })}`).slice(0, 100),
+    emoji:       { name: kindIcon(entry._kind) }
+  }));
+
+  const sel = select(client, userId, selectOptions, client.t('biblioteca.manage_select_placeholder', ctx), async (i) => {
+    await _deferUpdate(i);
+    const selected = combined.find(entry => entry.libId === i.data.values[0]);
+    if (selected._kind === 'fluxo') {
+      return _renderManageEntry(i, client, client.libraryManager, selected, userId, e);
+    }
+    return _embedsRenderManageEntry(i, client, client.messageLibraryManager, selected, userId, e);
+  });
+
+  return _edit(interaction, client, cv2Payload([
+    cv2Text(client.t('biblioteca.my_pubs_title', { ...ctx, eCurtida: e.curtida, count: combined.length, lines })),
+    cv2Divider(),
+    row(sel),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.manage_select_footer', ctx)),
+  ], { accentColor: COLOR.library }));
+}
+
+async function _destaques(interaction, client, e) {
+  const [flowHi, msgHi] = await Promise.all([
+    client.libraryManager.getHighlights(),
+    client.messageLibraryManager.getHighlights()
+  ]);
+
+  const ctx = localeCtx(interaction);
+  const kindIcon = (entry) => entry._kind === 'fluxo' ? '🔗' : (entry._kind === 'components_v2' ? '🧩' : '📋');
+
+  const mergeSorted = (flowList, msgList, statKey) => {
+    const combined = [
+      ...flowList.map(x => ({ ...x, _kind: 'fluxo', _lib: client.libraryManager })),
+      ...msgList.map(x => ({ ...x, _kind: x.type, _lib: client.messageLibraryManager }))
+    ];
+    combined.sort((a, b) => statKey(b) - statKey(a));
+    return combined.slice(0, 5);
+  };
+
+  const trending    = mergeSorted(flowHi.trending,    msgHi.trending,    x => x.stats.weeklyScore);
+  const topInstalls = mergeSorted(flowHi.topInstalls, msgHi.topInstalls, x => x.stats.installs);
+  const topRated    = mergeSorted(flowHi.topRated,    msgHi.topRated,    x => x.stats.avgRating);
+  const recent      = mergeSorted(flowHi.recent,      msgHi.recent,      x => new Date(x.publishedAt).getTime());
+
+  const fmt = async (list) => {
+    if (!list.length) return client.t('biblioteca.highlights_none', ctx);
+    const names = await Promise.all(list.map(entry => _resolveAuthorName(entry._lib, entry.authorId, client, ctx, entry.authorName)));
+    return list.map((entry, i) =>
+      `${i + 1}. ${kindIcon(entry)} **${entry.name}** ${client.t('biblioteca.highlights_by', ctx)} ${names[i]} — 📥 ${entry.stats.installs} • ⭐ ${entry.stats.avgRating}`
+    ).join('\n');
+  };
+
+  const [fTrending, fInstalls, fRated, fRecent] = await Promise.all([
+    fmt(trending), fmt(topInstalls), fmt(topRated), fmt(recent)
+  ]);
+
+  return _edit(interaction, client, cv2Payload([
+    cv2Text(`# ${e.festa} ${client.t('biblioteca.highlights_title', ctx)}`),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.highlights_trending', { ...ctx, list: fTrending })),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.highlights_installs', { ...ctx, list: fInstalls })),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.highlights_rated', { ...ctx, list: fRated })),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.highlights_recent', { ...ctx, list: fRecent })),
+  ], { accentColor: COLOR.library }));
+}
+
 
 
 async function _resolveAuthorName(lib, authorId, client, ctx, fallback = null) {
@@ -737,7 +1095,7 @@ function _triggerLabel(client, ctx, trigger) {
 }
 
 
-async function _pesquisar(interaction, client, lib, opts, userId, e) {
+async function _flowPesquisar(interaction, client, lib, opts, userId, e) {
   const { results } = await lib.search({
     query:    opts.nome,
     category: opts.categoria,
@@ -844,7 +1202,7 @@ async function _renderSearchPage(interaction, client, lib, filters, page, userId
   return _edit(interaction, client, cv2Payload(blocks, { accentColor: COLOR.library }));
 }
 
-async function _ver(interaction, client, lib, opts, userId, e) {
+async function _flowVer(interaction, client, lib, opts, userId, e) {
   const entry = await lib.getById(opts.id);
   if (!entry) {
     const ctx = localeCtx(interaction);
@@ -919,7 +1277,7 @@ async function _renderDetail(interaction, client, lib, libId, userId, e, entry =
   return _edit(interaction, client, cv2Payload(blocks, { accentColor: COLOR.library }));
 }
 
-async function _instalar(interaction, client, lib, opts, userId, guildId, e) {
+async function _flowInstalar(interaction, client, lib, opts, userId, guildId, e) {
   const entry = await lib.getById(opts.id);
   if (!entry) {
     const ctx = localeCtx(interaction);
@@ -930,7 +1288,7 @@ async function _instalar(interaction, client, lib, opts, userId, guildId, e) {
   return _startInstallWizard(interaction, client, lib, entry, userId, guildId, e);
 }
 
-async function _publicar(interaction, client, lib, userId, guildId, e) {
+async function _flowPublicar(interaction, client, lib, userId, guildId, e) {
   const { FlowModel } = require('../../Mongodb/flow.js');
   const flows = await FlowModel.find({ guildId }).lean();
   const ctx = localeCtx(interaction);
@@ -1084,7 +1442,7 @@ async function _announcePublicLibrary(client, entry, authorName, flowCount, e) {
   });
 }
 
-async function _atualizar(interaction, client, lib, opts, userId, guildId, e) {
+async function _flowAtualizar(interaction, client, lib, opts, userId, guildId, e) {
   const entry = await lib.getById(opts.id);
   const ctx = localeCtx(interaction);
   if (!entry) {
@@ -1202,7 +1560,7 @@ async function _atualizarModal(interaction, client, lib, libId, userId, guildId,
   return client.interactions.showModal(interaction, modal);
 }
 
-async function _editar(interaction, client, lib, opts, userId, e) {
+async function _flowEditar(interaction, client, lib, opts, userId, e) {
   const entry = await lib.getById(opts.id);
   const ctx = localeCtx(interaction);
   if (!entry) {
@@ -1259,7 +1617,7 @@ async function _editar(interaction, client, lib, opts, userId, e) {
   return client.interactions.showModal(interaction, modal);
 }
 
-async function _apagar(interaction, client, lib, opts, userId, e) {
+async function _flowApagar(interaction, client, lib, opts, userId, e) {
   const entry = await lib.getById(opts.id);
   const ctx = localeCtx(interaction);
   if (!entry) {
@@ -1302,7 +1660,7 @@ async function _apagar(interaction, client, lib, opts, userId, e) {
   ], { accentColor: COLOR.danger }));
 }
 
-async function _minhas(interaction, client, lib, userId, e) {
+async function _flowMinhas(interaction, client, lib, userId, e) {
   const entries = await lib.getMyPublications(userId);
   const ctx = localeCtx(interaction);
 
@@ -1352,18 +1710,18 @@ async function _renderManageEntry(interaction, client, lib, entry, userId, e) {
         .join('\n')
     : client.t('biblioteca.manage_history_none', ctx);
 
-  const btnEditar = btn(client, userId, client.t('biblioteca.btn_edit', ctx), 2, async (i) => _editar(i, client, lib, { id: entry.libId }, userId, e));
+  const btnEditar = btn(client, userId, client.t('biblioteca.btn_edit', ctx), 2, async (i) => _flowEditar(i, client, lib, { id: entry.libId }, userId, e));
 
-  const btnAtualizar = btn(client, userId, client.t('biblioteca.btn_update_version', ctx), 1, async (i) => _atualizar(i, client, lib, { id: entry.libId }, userId, i.guild_id, e));
+  const btnAtualizar = btn(client, userId, client.t('biblioteca.btn_update_version', ctx), 1, async (i) => _flowAtualizar(i, client, lib, { id: entry.libId }, userId, i.guild_id, e));
 
   const btnApagar = btn(client, userId, client.t('biblioteca.btn_delete', ctx), 4, async (i) => {
     await _deferUpdate(i);
-    return _apagar(i, client, lib, { id: entry.libId }, userId, e);
+    return _flowApagar(i, client, lib, { id: entry.libId }, userId, e);
   });
 
   const btnVoltar = btn(client, userId, client.t('biblioteca.btn_back', ctx), 2, async (i) => {
     await _deferUpdate(i);
-    return _minhas(i, client, lib, userId, e);
+    return _minhas(i, client, userId, e);
   });
 
   return _edit(interaction, client, cv2Payload([
@@ -1377,16 +1735,19 @@ async function _renderManageEntry(interaction, client, lib, entry, userId, e) {
   ], { accentColor: COLOR.library }));
 }
 
-async function _perfil(interaction, client, lib, opts, userId, e) {
+async function _perfil(interaction, client, opts, userId, e) {
   const targetId = opts.usuario || userId;
-  return _renderProfile(interaction, client, lib, targetId, userId, e);
+  return _renderProfile(interaction, client, targetId, userId, e);
 }
 
-async function _renderProfile(interaction, client, lib, targetId, userId, e) {
-  const profile = await lib.getCreatorProfile(targetId);
+async function _renderProfile(interaction, client, targetId, userId, e) {
+  const [flowProfile, msgProfile] = await Promise.all([
+    client.libraryManager.getCreatorProfile(targetId),
+    client.messageLibraryManager.getCreatorProfile(targetId)
+  ]);
   const ctx = localeCtx(interaction);
 
-  let displayName = profile.username;
+  let displayName = flowProfile.username;
   if (!displayName || displayName === targetId) {
     try {
       const userData = await DiscordRequest(`/users/${targetId}`);
@@ -1396,25 +1757,38 @@ async function _renderProfile(interaction, client, lib, targetId, userId, e) {
     }
   }
 
-  const topEntries = profile.entries
+  const totalPubs      = flowProfile.stats.totalFlows + msgProfile.stats.totalEntries;
+  const totalInstalls  = flowProfile.stats.totalInstalls + msgProfile.stats.totalInstalls;
+  const totalLikes     = flowProfile.stats.totalLikes + msgProfile.stats.totalLikes;
+  const ratedCounts    = [flowProfile.stats.avgRating, msgProfile.stats.avgRating].filter(Boolean);
+  const avgRating      = ratedCounts.length ? ratedCounts.reduce((a, b) => a + b, 0) / ratedCounts.length : 0;
+
+  const combinedEntries = [
+    ...flowProfile.entries.map(entry => ({ ...entry, _kind: 'fluxo' })),
+    ...msgProfile.entries.map(entry => ({ ...entry, _kind: entry.type || 'embed' }))
+  ];
+
+  const kindIcon = (k) => k === 'fluxo' ? '🔗' : (k === 'components_v2' ? '🧩' : '📋');
+
+  const topEntries = combinedEntries
     .sort((a, b) => b.installs - a.installs)
     .slice(0, 5)
-    .map((entry, i) => `${i + 1}. **${entry.name}** \`v${entry.version}\` — 📥 ${entry.installs}`)
+    .map((entry, i) => `${i + 1}. ${kindIcon(entry._kind)} **${entry.name}** \`v${entry.version}\` — 📥 ${entry.installs}`)
     .join('\n') || client.t('biblioteca.profile_no_pubs', ctx);
 
-  const isFollowing = (await lib.getFollowers(targetId)).includes(userId);
+  const isFollowing = (await client.libraryManager.getFollowers(targetId)).includes(userId);
   const isSelf      = targetId === userId;
   const numLocale    = ctx.system?.locale || 'pt-BR';
 
   const blocks = [
-    cv2Text(`# ${e.carinho} ${displayName}\n${profile.bio || client.t('biblioteca.profile_no_bio', ctx)}`),
+    cv2Text(`# ${e.carinho} ${displayName}\n${flowProfile.bio || client.t('biblioteca.profile_no_bio', ctx)}`),
     cv2Divider(),
     cv2Text(
-      `> ${client.t('biblioteca.profile_publications', ctx)} ${profile.stats.totalFlows}\n` +
-      `> ${client.t('biblioteca.profile_installs', ctx)} ${profile.stats.totalInstalls.toLocaleString(numLocale)}\n` +
-      `> ${client.t('biblioteca.profile_likes', ctx)} ${profile.stats.totalLikes}\n` +
-      `> ${client.t('biblioteca.profile_rating', ctx)} ${profile.stats.avgRating.toFixed(1)} ⭐\n` +
-      `> ${client.t('biblioteca.profile_followers', ctx)} ${profile.followers}`
+      `> ${client.t('biblioteca.profile_publications', ctx)} ${totalPubs}\n` +
+      `> ${client.t('biblioteca.profile_installs', ctx)} ${totalInstalls.toLocaleString(numLocale)}\n` +
+      `> ${client.t('biblioteca.profile_likes', ctx)} ${totalLikes}\n` +
+      `> ${client.t('biblioteca.profile_rating', ctx)} ${avgRating.toFixed(1)} ⭐\n` +
+      `> ${client.t('biblioteca.profile_followers', ctx)} ${flowProfile.followers}`
     ),
     cv2Divider(),
     cv2Text(client.t('biblioteca.profile_top_flows', { ...ctx, list: topEntries })),
@@ -1423,8 +1797,8 @@ async function _renderProfile(interaction, client, lib, targetId, userId, e) {
   if (!isSelf) {
     const btnFollow = btn(client, userId, isFollowing ? client.t('biblioteca.btn_unfollow', ctx) : client.t('biblioteca.btn_follow', ctx), isFollowing ? 4 : 3, async (i) => {
       await _deferUpdate(i);
-      await lib.toggleFollow(userId, targetId);
-      return _renderProfile(i, client, lib, targetId, userId, e);
+      await client.libraryManager.toggleFollow(userId, targetId);
+      return _renderProfile(i, client, targetId, userId, e);
     });
     blocks.push(cv2Divider());
     blocks.push(row(btnFollow));
@@ -1436,7 +1810,8 @@ async function _renderProfile(interaction, client, lib, targetId, userId, e) {
   return _edit(interaction, client, cv2Payload(blocks, { accentColor: COLOR.library }));
 }
 
-async function _destaques(interaction, client, lib, e) {
+
+async function _flowDestaques(interaction, client, lib, e) {
   const { trending, topInstalls, topRated, recent } = await lib.getHighlights();
   const ctx = localeCtx(interaction);
 
@@ -1466,6 +1841,740 @@ async function _destaques(interaction, client, lib, e) {
 }
 
 async function _openRateModal(interaction, client, lib, libId, userId, e) {
+  const ctx = localeCtx(interaction);
+  const modal = client.interactions.createModal({
+    user:  userId,
+    title: client.t('biblioteca.modal_rate_title', ctx),
+    components: [{
+      type: 1,
+      components: [{
+        type:        4,
+        custom_id:   'rating',
+        label:       client.t('biblioteca.modal_field_rating', ctx),
+        style:       1,
+        required:    true,
+        max_length:  1,
+        placeholder: '5'
+      }]
+    }],
+    funcao: async (modalInteraction, _client, fields) => {
+      const rating = Number(fields.rating);
+
+      await DiscordRequest(
+        `/interactions/${modalInteraction.id}/${modalInteraction.token}/callback`,
+        { method: 'POST', body: { type: 6 } }
+      );
+
+      if (!rating || rating < 1 || rating > 5) {
+        return _followUpEphemeral(modalInteraction, client, cv2Payload([
+          cv2Text(client.t('biblioteca.invalid_rating', { ...ctx, eEmduvida: e.emduvida }))
+        ], { accentColor: COLOR.danger }));
+      }
+
+      const result = await lib.rate(libId, userId, rating);
+      return _followUp(modalInteraction, client, cv2Payload([
+        cv2Text(client.t('biblioteca.rate_success', { ...ctx, eCorao: e.corao, rating, avg: result.avg, count: result.count }))
+      ], { accentColor: COLOR.success }));
+    }
+  });
+
+  return client.interactions.showModal(interaction, modal);
+}
+
+
+// ============================================================================
+// BIBLIOTECA DE EMBEDS & COMPONENTS V2  (/biblioteca embeds ...)
+// ============================================================================
+
+function _embedsTypeLabel(client, ctx, type) {
+  return type === 'components_v2'
+    ? client.t('biblioteca.embeds_type_cv2', ctx)
+    : client.t('biblioteca.embeds_type_embed', ctx);
+}
+
+async function _announceEmbedsLibrary(client, entry, authorName, e) {
+  const emoji = CATEGORY_EMOJI[entry.category] || '📦';
+  const tags  = entry.tags?.length ? entry.tags.map(t => `\`${t}\``).join(' ') : '_Sem tags_';
+
+  await DiscordRequest(`/channels/${SUPPORT_ANNOUNCE_CHANNEL}/messages`, {
+    method: 'POST',
+    body: cv2Payload([
+      cv2Text(client.t('biblioteca.announce_title', { emoji, entryName: entry.name, authorName, shortDesc: entry.shortDesc || '' })),
+      cv2Divider(),
+      cv2Text(
+        `> 📂 **Categoria:** ${entry.category}\n` +
+        `> 🧩 **Tipo:** ${_embedsTypeLabel(client, {}, entry.type)}\n` +
+        `> 🏷️ **Tags:** ${tags}\n` +
+        `> 🆔 **ID:** \`${entry.libId}\``
+      ),
+    ], { accentColor: COLOR.library })
+  });
+}
+
+function _embedsPreviewPayload(entry) {
+  if (entry.type === 'components_v2') {
+    // entry.components está no formato "kind" (mesmo do Component Builder do site,
+    // e do state.blocks do editor /criar) — precisa ser serializado pro formato
+    // real da API do Discord antes de virar um payload de mensagem de verdade.
+    return buildCV2Payload(entry.components, { ephemeral: true });
+  }
+  return {
+    flags:  64,
+    content: entry.content || undefined,
+    embeds: entry.embeds || []
+  };
+}
+
+async function _embedsPesquisar(interaction, client, lib, opts, userId, e) {
+  const { results } = await lib.search({
+    query:    opts.nome,
+    type:     opts.tipo,
+    category: opts.categoria,
+    tag:      opts.tag,
+    authorId: opts.autor,
+    sort:     opts.ordenar || 'installs',
+    page:     0,
+    limit:    10
+  });
+
+  if (!results.length) {
+    const ctx = localeCtx(interaction);
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(
+        `# ${e.emduvida} ${client.t('biblioteca.no_results_title', ctx)}\n` +
+        client.t('biblioteca.no_results_desc', ctx)
+      )
+    ], { accentColor: COLOR.main }));
+  }
+
+  return _embedsRenderSearchPage(interaction, client, lib, {
+    query:    opts.nome,
+    type:     opts.tipo,
+    category: opts.categoria,
+    tag:      opts.tag,
+    authorId: opts.autor,
+    sort:     opts.ordenar || 'installs'
+  }, 0, userId, e);
+}
+
+async function _embedsRenderSearchPage(interaction, client, lib, filters, page, userId, e) {
+  const { results, total, pages } = await lib.search({ ...filters, page, limit: 8 });
+  const ctx = localeCtx(interaction);
+  const numLocale = ctx.system?.locale || 'pt-BR';
+
+  const authorNames = await Promise.all(
+    results.map(entry => _resolveAuthorName(lib, entry.authorId, client, ctx, entry.authorName))
+  );
+  results.forEach((entry, i) => { entry._resolvedAuthor = authorNames[i]; });
+
+  const filterDesc = [];
+  if (filters.query)    filterDesc.push(`🔎 \`${filters.query}\``);
+  if (filters.type)     filterDesc.push(filters.type === 'components_v2' ? '🧩' : '📋');
+  if (filters.category) filterDesc.push(`${CATEGORY_EMOJI[filters.category] || '📦'} ${filters.category}`);
+  if (filters.tag)      filterDesc.push(`🏷️ \`${filters.tag}\``);
+  const filterLine = filterDesc.length ? `**${client.t('biblioteca.search_filters_label', ctx)}:** ${filterDesc.join('  •  ')}\n` : '';
+
+  const sortLabels = {
+    installs: client.t('biblioteca.sort_installs', ctx),
+    rating:   client.t('biblioteca.sort_rating', ctx),
+    trending: client.t('biblioteca.sort_trending', ctx),
+    recent:   client.t('biblioteca.sort_recent', ctx)
+  };
+  const sortLine = `**${client.t('biblioteca.search_order_label', ctx)}:** ${sortLabels[filters.sort] || client.t('biblioteca.sort_installs', ctx)}`;
+
+  const lines = results.map((entry, i) => {
+    const emoji = CATEGORY_EMOJI[entry.category] || '📦';
+    const typeIcon = entry.type === 'components_v2' ? '🧩' : '📋';
+    const stars = _stars(client, ctx, entry.stats.avgRating, entry.stats.ratingCount);
+    const num   = page * 8 + i + 1;
+    return (
+      `**${num}.** ${emoji}${typeIcon} **${entry.name}** \`v${entry.version}\`\n` +
+      `> 👤 ${entry._resolvedAuthor}  •  ${client.t('biblioteca.search_installs_label', { ...ctx, count: entry.stats.installs.toLocaleString(numLocale) })}  •  ${stars}\n` +
+      `> _${entry.shortDesc || client.t('biblioteca.search_no_desc', ctx)}_`
+    );
+  }).join('\n\n');
+
+  const selectOptions = results.map(entry => ({
+    label:       entry.name.slice(0, 100),
+    value:       entry.libId,
+    description: (`v${entry.version} • ${entry._resolvedAuthor} • ${client.t('biblioteca.search_installs_label', { ...ctx, count: entry.stats.installs })}`).slice(0, 100),
+    emoji:       { name: (CATEGORY_EMOJI[entry.category] || '📦').replace(/\uFE0F/g, '') }
+  }));
+
+  const sel = select(client, userId, selectOptions, client.t('biblioteca.search_select_placeholder', ctx), async (i) => {
+    await _deferUpdate(i);
+    return _embedsRenderDetail(i, client, lib, i.data.values[0], userId, e);
+  });
+
+  const blocks = [
+    cv2Text(client.t('biblioteca.embeds_search_title', { ...ctx, eAnimada: e.animada, filterLine, sortLine })),
+    cv2Divider(),
+    cv2Text(lines),
+    cv2Divider(),
+    row(sel),
+  ];
+
+  const navBtns = [];
+  if (page > 0) {
+    navBtns.push(btn(client, userId, client.t('biblioteca.search_prev', ctx), 2, async (i) => {
+      await _deferUpdate(i);
+      return _embedsRenderSearchPage(i, client, lib, filters, page - 1, userId, e);
+    }));
+  }
+  navBtns.push(btn(client, userId, `${page + 1} / ${pages}`, 2, async (i) => { await _deferUpdate(i); }, { disabled: true }));
+  if (page < pages - 1) {
+    navBtns.push(btn(client, userId, client.t('biblioteca.search_next', ctx), 2, async (i) => {
+      await _deferUpdate(i);
+      return _embedsRenderSearchPage(i, client, lib, filters, page + 1, userId, e);
+    }));
+  }
+  if (navBtns.length) blocks.push(row(...navBtns));
+
+  blocks.push(cv2Divider());
+  blocks.push(cv2Text(client.t('biblioteca.search_footer', { ...ctx, total, page: page + 1, pages })));
+
+  return _edit(interaction, client, cv2Payload(blocks, { accentColor: COLOR.library }));
+}
+
+async function _embedsVer(interaction, client, lib, opts, userId, e) {
+  const entry = await lib.getById(opts.id);
+  if (!entry) {
+    const ctx = localeCtx(interaction);
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(client.t('biblioteca.entry_not_found', { ...ctx, eEmduvida: e.emduvida }))
+    ], { accentColor: COLOR.danger }));
+  }
+  return _embedsRenderDetail(interaction, client, lib, opts.id, userId, e, entry);
+}
+
+async function _embedsRenderDetail(interaction, client, lib, libId, userId, e, entry = null) {
+  entry = entry || await lib.getById(libId);
+  if (!entry) return;
+
+  const ctx = localeCtx(interaction);
+  const numLocale = ctx.system?.locale || 'pt-BR';
+
+  const authorName   = await _resolveAuthorName(lib, entry.authorId, client, ctx, entry.authorName);
+  const userRating   = await lib.getUserRating(libId, userId);
+  const emoji        = CATEGORY_EMOJI[entry.category] || '📦';
+  const stars        = _stars(client, ctx, entry.stats.avgRating, entry.stats.ratingCount);
+  const tags         = entry.tags?.length ? entry.tags.map(t => `\`${t}\``).join(' ') : client.t('biblioteca.detail_no_tags', ctx);
+  const likeStyle    = userRating?.vote === 'like'    ? 3 : 2;
+  const dislikeStyle = userRating?.vote === 'dislike' ? 4 : 2;
+
+  const btnPreview = btn(client, userId, client.t('biblioteca.embeds_btn_preview', ctx), 1, async (i) => {
+    return _followUpEphemeral(i, client, _embedsPreviewPayload(entry));
+  }, { emoji: { name: '👁️' } });
+
+  const btnInstall = btn(client, userId, client.t('biblioteca.btn_install', ctx), 3, async (i) => {
+    await _deferUpdate(i);
+    try {
+      const draft = await lib.install({ libId, guildId: i.guild_id, channelId: i.channel_id, userId });
+      const iCtx = localeCtx(i);
+      return _edit(i, client, cv2Payload([
+        cv2Text(client.t('biblioteca.embeds_install_success', { ...iCtx, eFesta: e.festa, entryName: entry.name, savedId: draft._id.toString() }))
+      ], { accentColor: COLOR.success }));
+    } catch (err) {
+      const iCtx = localeCtx(i);
+      return _edit(i, client, cv2Payload([
+        cv2Text(client.t('biblioteca.generic_error', { ...iCtx, eAssustada: e.assustada, message: err.message }))
+      ], { accentColor: COLOR.danger }));
+    }
+  });
+
+  const btnLike = btn(client, userId, `👍 ${entry.stats.likes}`, likeStyle, async (i) => {
+    await _deferUpdate(i);
+    await lib.vote(libId, userId, 'like');
+    const updated = await lib.getById(libId);
+    return _embedsRenderDetail(i, client, lib, libId, userId, e, updated);
+  });
+
+  const btnDislike = btn(client, userId, `👎 ${entry.stats.dislikes}`, dislikeStyle, async (i) => {
+    await _deferUpdate(i);
+    await lib.vote(libId, userId, 'dislike');
+    const updated = await lib.getById(libId);
+    return _embedsRenderDetail(i, client, lib, libId, userId, e, updated);
+  });
+
+  const btnRate = btn(client, userId, client.t('biblioteca.btn_rate', ctx), 2, async (i) => _embedsOpenRateModal(i, client, lib, libId, userId, e));
+
+  const blocks = [
+    cv2Text(`# ${emoji} ${entry.name} \`v${entry.version}\`\n${entry.fullDesc || entry.shortDesc || client.t('biblioteca.detail_no_desc', ctx)}`),
+    cv2Divider(),
+    cv2Text(
+      `> ${client.t('biblioteca.detail_author', ctx)} ${authorName}\n` +
+      `> ${client.t('biblioteca.detail_category', ctx)} ${entry.category}\n` +
+      `> ${client.t('biblioteca.embeds_detail_type', ctx)} ${_embedsTypeLabel(client, ctx, entry.type)}\n` +
+      `> ${client.t('biblioteca.detail_installs', ctx)} ${entry.stats.installs.toLocaleString(numLocale)}\n` +
+      `> ${client.t('biblioteca.detail_rating', { ...ctx, stars, count: entry.stats.ratingCount })}\n` +
+      `> ${client.t('biblioteca.detail_tags', ctx)} ${tags}\n` +
+      `> ${client.t('biblioteca.detail_id', ctx)} \`${entry.libId}\``
+    ),
+    cv2Divider(),
+    row(btnPreview, btnInstall, btnLike, btnDislike, btnRate),
+  ];
+
+  return _edit(interaction, client, cv2Payload(blocks, { accentColor: COLOR.library }));
+}
+
+async function _embedsInstalar(interaction, client, lib, opts, userId, guildId, e) {
+  const entry = await lib.getById(opts.id);
+  const ctx = localeCtx(interaction);
+  if (!entry) {
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(client.t('biblioteca.entry_not_found', { ...ctx, eEmduvida: e.emduvida }))
+    ], { accentColor: COLOR.danger }));
+  }
+
+  const draft = await lib.install({ libId: opts.id, guildId, channelId: interaction.channel_id, userId });
+
+  return _edit(interaction, client, cv2Payload([
+    cv2Text(client.t('biblioteca.embeds_install_success', { ...ctx, eFesta: e.festa, entryName: entry.name, savedId: draft._id.toString() }))
+  ], { accentColor: COLOR.success }));
+}
+
+async function _embedsPublicar(interaction, client, lib, userId, guildId, e) {
+  const { SavedMessageModel } = require('../../Mongodb/savedMessage.js');
+  const saved = await SavedMessageModel.find({ guildId }).sort({ updatedAt: -1 }).limit(25).lean();
+  const ctx = localeCtx(interaction);
+
+  if (!saved.length) {
+    return _reply(interaction, cv2Payload([
+      cv2Text(`${client.t('biblioteca.embeds_no_saved_title', { ...ctx, eEmburrada: e.emburrada })}\n${client.t('biblioteca.embeds_no_saved_publish_desc', ctx)}`)
+    ], { accentColor: COLOR.danger }));
+  }
+
+  let authorName = client.t('biblioteca.fallback_anon', ctx);
+  try {
+    const userData = await DiscordRequest(`/users/${userId}`);
+    authorName = userData.global_name || userData.username || client.t('biblioteca.fallback_anon', ctx);
+  } catch {}
+
+  const state = { selectedMessageId: null };
+  return _embedsRenderPublishPanel(interaction, client, lib, saved, userId, guildId, authorName, state, true, e);
+}
+
+async function _embedsRenderPublishPanel(interaction, client, lib, saved, userId, guildId, authorName, state, isReply = true, e) {
+  const ctx = localeCtx(interaction);
+  const chosen = saved.find(m => m._id.toString() === state.selectedMessageId);
+  const selectedLabel = chosen
+    ? `${chosen.type === 'components_v2' ? '🧩' : '📋'} \`${chosen._id}\` — #${chosen.channelId}`
+    : client.t('biblioteca.embeds_no_message_selected', ctx);
+
+  const blocks = [];
+  blocks.push(cv2Text(client.t('biblioteca.embeds_publish_title', { ...ctx, eAnimada: e.animada, authorName })));
+  blocks.push(cv2Divider());
+  blocks.push(cv2Text(client.t('biblioteca.embeds_selected_message_label', { ...ctx, name: selectedLabel })));
+  blocks.push(cv2Divider());
+
+  const options = saved.slice(0, 25).map(m => ({
+    label:       `${m.type === 'components_v2' ? '🧩 Components V2' : '📋 Embed'} — #${m.channelId}`.slice(0, 100),
+    value:       m._id.toString(),
+    description: `${new Date(m.updatedAt).toLocaleString('pt-BR')}`.slice(0, 100)
+  }));
+
+  const sel = select(client, userId, options, client.t('biblioteca.embeds_select_message_placeholder', ctx), async (i) => {
+    await _deferUpdate(i);
+    state.selectedMessageId = i.data.values[0];
+    return _embedsRenderPublishPanel(i, client, lib, saved, userId, guildId, authorName, state, false, e);
+  });
+  blocks.push(row(sel));
+
+  if (chosen) {
+    const btnPreview = btn(client, userId, client.t('biblioteca.embeds_btn_preview', ctx), 1, async (i) => {
+      return _followUpEphemeral(i, client, _embedsPreviewPayload(chosen));
+    }, { emoji: { name: '👁️' } });
+
+    const btnPublish = btn(client, userId, client.t('biblioteca.btn_publish', ctx), 3, async (i) => {
+      return _embedsPublicarModal(i, client, lib, userId, guildId, authorName, state.selectedMessageId, e);
+    });
+
+    blocks.push(row(btnPreview, btnPublish));
+  }
+
+  const payload = cv2Payload(blocks, { accentColor: COLOR.library });
+  if (isReply) return _reply(interaction, payload);
+  return _edit(interaction, client, payload);
+}
+
+async function _embedsPublicarModal(interaction, client, lib, userId, guildId, authorName, savedMessageId, e) {
+  const ctx = localeCtx(interaction);
+  const modal = client.interactions.createModal({
+    user:  userId,
+    title: client.t('biblioteca.modal_publish_title', ctx),
+    components: [
+      { type: 1, components: [{ type: 4, custom_id: 'name',      label: client.t('biblioteca.modal_field_system_name', ctx),         style: 1, required: true,  max_length: 100,  placeholder: client.t('biblioteca.modal_field_system_name_ph', ctx) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'shortDesc', label: client.t('biblioteca.modal_field_short_desc', ctx),           style: 1, required: true,  max_length: 150,  placeholder: client.t('biblioteca.modal_field_short_desc_ph', ctx) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'fullDesc',  label: client.t('biblioteca.modal_field_full_desc', ctx),            style: 2, required: false, max_length: 2000, placeholder: client.t('biblioteca.modal_field_full_desc_ph', ctx) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'category',  label: client.t('biblioteca.modal_field_category', ctx),             style: 1, required: true,  max_length: 20,   placeholder: client.t('biblioteca.modal_field_category_ph', ctx) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'tags',      label: client.t('biblioteca.modal_field_tags', ctx),                 style: 1, required: false, max_length: 200,  placeholder: client.t('biblioteca.modal_field_tags_ph', ctx) }] }
+    ],
+    funcao: async (modalInteraction, _client, fields) => {
+      const category = CATEGORIES.find(c => c.toLowerCase() === fields.category?.trim().toLowerCase());
+
+      await DiscordRequest(
+        `/interactions/${modalInteraction.id}/${modalInteraction.token}/callback`,
+        { method: 'POST', body: { type: 6 } }
+      );
+
+      if (!category) {
+        return _followUpEphemeral(modalInteraction, client, cv2Payload([
+          cv2Text(client.t('biblioteca.invalid_category', { ...ctx, eEmduvida: e.emduvida, list: CATEGORIES.join(', ') }))
+        ], { accentColor: COLOR.danger }));
+      }
+
+      try {
+        const entry = await lib.publish({
+          authorId:  userId,
+          name:      fields.name.trim(),
+          shortDesc: fields.shortDesc.trim(),
+          fullDesc:  fields.fullDesc?.trim() || '',
+          category,
+          tags:      fields.tags ? fields.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+          savedMessageId,
+          guildId
+        });
+
+        _announceEmbedsLibrary(client, entry, authorName, e).catch(() => {});
+
+        return _followUp(modalInteraction, client, cv2Payload([
+          cv2Text(client.t('biblioteca.embeds_publish_success', {
+            ...ctx,
+            eFesta: e.festa,
+            entryName: entry.name,
+            libId: entry.libId,
+            typeLabel: _embedsTypeLabel(client, ctx, entry.type)
+          }))
+        ], { accentColor: COLOR.success }));
+      } catch (err) {
+        return _followUpEphemeral(modalInteraction, client, cv2Payload([
+          cv2Text(client.t('biblioteca.publish_error', { ...ctx, eAssustada: e.assustada, message: err.message }))
+        ], { accentColor: COLOR.danger }));
+      }
+    }
+  });
+
+  return client.interactions.showModal(interaction, modal);
+}
+
+async function _embedsAtualizar(interaction, client, lib, opts, userId, guildId, e) {
+  const entry = await lib.getById(opts.id);
+  const ctx = localeCtx(interaction);
+  if (!entry) {
+    return _reply(interaction, cv2Payload([
+      cv2Text(client.t('biblioteca.entry_not_found_short', { ...ctx, eEmduvida: e.emduvida }))
+    ], { accentColor: COLOR.danger }));
+  }
+  if (entry.authorId !== userId) {
+    return _reply(interaction, cv2Payload([
+      cv2Text(client.t('biblioteca.not_author', { ...ctx, eBrava: e.brava }))
+    ], { accentColor: COLOR.danger }));
+  }
+
+  const { SavedMessageModel } = require('../../Mongodb/savedMessage.js');
+  const saved = await SavedMessageModel.find({ guildId }).sort({ updatedAt: -1 }).limit(25).lean();
+
+  if (!saved.length) {
+    return _reply(interaction, cv2Payload([
+      cv2Text(`${client.t('biblioteca.embeds_no_saved_title', { ...ctx, eEmburrada: e.emburrada })}\n${client.t('biblioteca.embeds_no_saved_update_desc', ctx)}`)
+    ], { accentColor: COLOR.danger }));
+  }
+
+  let authorName = entry.authorName || client.t('biblioteca.fallback_anon', ctx);
+  try {
+    const userData = await DiscordRequest(`/users/${userId}`);
+    authorName = userData.global_name || userData.username || authorName;
+  } catch {}
+
+  const state = { selectedMessageId: null };
+  return _embedsRenderUpdatePanel(interaction, client, lib, saved, userId, guildId, authorName, opts.id, entry, state, true, e);
+}
+
+async function _embedsRenderUpdatePanel(interaction, client, lib, saved, userId, guildId, authorName, libId, entry, state, isReply = false, e) {
+  const ctx = localeCtx(interaction);
+  const chosen = saved.find(m => m._id.toString() === state.selectedMessageId);
+  const selectedLabel = chosen
+    ? `${chosen.type === 'components_v2' ? '🧩' : '📋'} \`${chosen._id}\` — #${chosen.channelId}`
+    : client.t('biblioteca.embeds_no_message_selected', ctx);
+
+  const blocks = [];
+  blocks.push(cv2Text(client.t('biblioteca.embeds_update_panel_title', { ...ctx, ePensando: e.pensando, entryName: entry.name, version: entry.version })));
+  blocks.push(cv2Divider());
+  blocks.push(cv2Text(client.t('biblioteca.embeds_selected_message_label', { ...ctx, name: selectedLabel })));
+  blocks.push(cv2Divider());
+
+  const options = saved.slice(0, 25).map(m => ({
+    label:       `${m.type === 'components_v2' ? '🧩 Components V2' : '📋 Embed'} — #${m.channelId}`.slice(0, 100),
+    value:       m._id.toString(),
+    description: `${new Date(m.updatedAt).toLocaleString('pt-BR')}`.slice(0, 100)
+  }));
+
+  const sel = select(client, userId, options, client.t('biblioteca.embeds_select_message_placeholder', ctx), async (i) => {
+    await _deferUpdate(i);
+    state.selectedMessageId = i.data.values[0];
+    return _embedsRenderUpdatePanel(i, client, lib, saved, userId, guildId, authorName, libId, entry, state, false, e);
+  });
+  blocks.push(row(sel));
+
+  if (chosen) {
+    const btnPreview = btn(client, userId, client.t('biblioteca.embeds_btn_preview', ctx), 1, async (i) => {
+      return _followUpEphemeral(i, client, _embedsPreviewPayload(chosen));
+    }, { emoji: { name: '👁️' } });
+
+    const btnConfirm = btn(client, userId, client.t('biblioteca.btn_confirm_update', ctx), 3, async (i) => {
+      return _embedsAtualizarModal(i, client, lib, libId, userId, guildId, authorName, state.selectedMessageId, entry.version, e);
+    });
+
+    blocks.push(row(btnPreview, btnConfirm));
+  }
+
+  const payload = cv2Payload(blocks, { accentColor: COLOR.library });
+  if (isReply) return _reply(interaction, payload);
+  return _edit(interaction, client, payload);
+}
+
+async function _embedsAtualizarModal(interaction, client, lib, libId, userId, guildId, authorName, savedMessageId, currentVersion, e) {
+  const ctx = localeCtx(interaction);
+  const modal = client.interactions.createModal({
+    user:  userId,
+    title: client.t('biblioteca.modal_update_title', ctx),
+    components: [
+      { type: 1, components: [{ type: 4, custom_id: 'version',   label: client.t('biblioteca.modal_field_new_version', { ...ctx, current: currentVersion }), style: 1, required: true,  max_length: 20,  placeholder: client.t('biblioteca.modal_field_new_version_ph', ctx) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'changelog', label: client.t('biblioteca.modal_field_changelog', ctx),                                    style: 2, required: false, max_length: 500, placeholder: client.t('biblioteca.modal_field_changelog_ph', ctx) }] }
+    ],
+    funcao: async (modalInteraction, _client, fields) => {
+      await DiscordRequest(
+        `/interactions/${modalInteraction.id}/${modalInteraction.token}/callback`,
+        { method: 'POST', body: { type: 6 } }
+      );
+
+      try {
+        const updated = await lib.publishUpdate({
+          libId, authorId: userId, savedMessageId, guildId,
+          newVersion: fields.version.trim(),
+          changelog:  fields.changelog?.trim() || ''
+        });
+
+        return _followUp(modalInteraction, client, cv2Payload([
+          cv2Text(client.t('biblioteca.embeds_update_success', { ...ctx, eFesta: e.festa, version: updated.version, entryName: updated.name }))
+        ], { accentColor: COLOR.success }));
+      } catch (err) {
+        return _followUpEphemeral(modalInteraction, client, cv2Payload([
+          cv2Text(client.t('biblioteca.update_error', { ...ctx, eAssustada: e.assustada, message: err.message }))
+        ], { accentColor: COLOR.danger }));
+      }
+    }
+  });
+
+  return client.interactions.showModal(interaction, modal);
+}
+
+async function _embedsEditar(interaction, client, lib, opts, userId, e) {
+  const entry = await lib.getById(opts.id);
+  const ctx = localeCtx(interaction);
+  if (!entry) {
+    return _reply(interaction, cv2Payload([
+      cv2Text(client.t('biblioteca.entry_not_found_short', { ...ctx, eEmduvida: e.emduvida }))
+    ], { accentColor: COLOR.danger }));
+  }
+  if (entry.authorId !== userId) {
+    return _reply(interaction, cv2Payload([
+      cv2Text(client.t('biblioteca.not_author', { ...ctx, eBrava: e.brava }))
+    ], { accentColor: COLOR.danger }));
+  }
+
+  const modal = client.interactions.createModal({
+    user:  userId,
+    title: client.t('biblioteca.modal_edit_title', { ...ctx, name: entry.name.slice(0, 30) }),
+    components: [
+      { type: 1, components: [{ type: 4, custom_id: 'name',      label: client.t('biblioteca.modal_field_name', ctx),            style: 1, required: true,  max_length: 100,  value: entry.name }] },
+      { type: 1, components: [{ type: 4, custom_id: 'shortDesc', label: client.t('biblioteca.modal_field_short_desc_edit', ctx), style: 1, required: false, max_length: 150,  value: entry.shortDesc || '' }] },
+      { type: 1, components: [{ type: 4, custom_id: 'fullDesc',  label: client.t('biblioteca.modal_field_full_desc_edit', ctx),  style: 2, required: false, max_length: 2000, value: entry.fullDesc  || '' }] },
+      { type: 1, components: [{ type: 4, custom_id: 'category',  label: client.t('biblioteca.modal_field_category_edit', ctx),   style: 1, required: false, max_length: 20,   value: entry.category }] },
+      { type: 1, components: [{ type: 4, custom_id: 'tags',      label: client.t('biblioteca.modal_field_tags_edit', ctx),       style: 1, required: false, max_length: 200,  value: entry.tags?.join(', ') || '' }] }
+    ],
+    funcao: async (modalInteraction, _client, fields) => {
+      await DiscordRequest(
+        `/interactions/${modalInteraction.id}/${modalInteraction.token}/callback`,
+        { method: 'POST', body: { type: 6 } }
+      );
+
+      try {
+        const category = fields.category
+          ? CATEGORIES.find(c => c.toLowerCase() === fields.category.trim().toLowerCase())
+          : entry.category;
+
+        await lib.editMetadata(opts.id, userId, {
+          name:      fields.name?.trim(),
+          shortDesc: fields.shortDesc?.trim(),
+          fullDesc:  fields.fullDesc?.trim(),
+          category:  category || entry.category,
+          tags:      fields.tags ? fields.tags.split(',').map(t => t.trim()).filter(Boolean) : entry.tags
+        });
+
+        return _followUp(modalInteraction, client, cv2Payload([
+          cv2Text(client.t('biblioteca.edit_success', { ...ctx, eFeliz: e.feliz }))
+        ], { accentColor: COLOR.success }));
+      } catch (err) {
+        return _followUpEphemeral(modalInteraction, client, cv2Payload([
+          cv2Text(client.t('biblioteca.edit_error', { ...ctx, eAssustada: e.assustada, message: err.message }))
+        ], { accentColor: COLOR.danger }));
+      }
+    }
+  });
+
+  return client.interactions.showModal(interaction, modal);
+}
+
+async function _embedsApagar(interaction, client, lib, opts, userId, e) {
+  const entry = await lib.getById(opts.id);
+  const ctx = localeCtx(interaction);
+  if (!entry) {
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(client.t('biblioteca.entry_not_found_short', { ...ctx, eEmduvida: e.emduvida }))
+    ], { accentColor: COLOR.danger }));
+  }
+  if (entry.authorId !== userId) {
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(client.t('biblioteca.not_author', { ...ctx, eBrava: e.brava }))
+    ], { accentColor: COLOR.danger }));
+  }
+
+  const btnConfirm = btn(client, userId, client.t('biblioteca.btn_confirm_delete', ctx), 4, async (i) => {
+    await _deferUpdate(i);
+    const iCtx = localeCtx(i);
+    try {
+      await lib.delete(opts.id, userId);
+      return _edit(i, client, cv2Payload([
+        cv2Text(client.t('biblioteca.delete_success', { ...iCtx, eEmburrada: e.emburrada, entryName: entry.name }))
+      ], { accentColor: COLOR.danger }));
+    } catch (err) {
+      return _edit(i, client, cv2Payload([
+        cv2Text(client.t('biblioteca.delete_error', { ...iCtx, eAssustada: e.assustada, message: err.message }))
+      ], { accentColor: COLOR.danger }));
+    }
+  });
+
+  const btnCancel = btn(client, userId, client.t('biblioteca.btn_cancel', ctx), 2, async (i) => {
+    await _deferUpdate(i);
+    return _edit(i, client, cv2Payload([
+      cv2Text(client.t('biblioteca.delete_cancelled', { ...localeCtx(i), eFeliz: e.feliz }))
+    ], { accentColor: COLOR.main }));
+  });
+
+  return _edit(interaction, client, cv2Payload([
+    cv2Text(client.t('biblioteca.delete_confirm_title', { ...ctx, eAssustada: e.assustada, entryName: entry.name })),
+    cv2Divider(),
+    row(btnConfirm, btnCancel),
+  ], { accentColor: COLOR.danger }));
+}
+
+async function _embedsMinhas(interaction, client, lib, userId, e) {
+  const entries = await lib.getMyPublications(userId);
+  const ctx = localeCtx(interaction);
+
+  if (!entries.length) {
+    return _edit(interaction, client, cv2Payload([
+      cv2Text(client.t('biblioteca.embeds_my_pubs_empty', { ...ctx, ePensando: e.pensando }))
+    ], { accentColor: COLOR.library }));
+  }
+
+  const lines = entries.map((entry, i) => {
+    const statusIcon = entry.status === 'approved' ? '🟢' : entry.status === 'pending' ? '🟡' : '🔴';
+    const emoji      = CATEGORY_EMOJI[entry.category] || '📦';
+    const typeIcon   = entry.type === 'components_v2' ? '🧩' : '📋';
+    return (
+      `**${i + 1}.** ${statusIcon} ${emoji}${typeIcon} **${entry.name}** \`v${entry.version}\`\n` +
+      `> ${client.t('biblioteca.my_pubs_installs', { ...ctx, count: entry.stats.installs })}  •  ${_stars(client, ctx, entry.stats.avgRating, 0)}`
+    );
+  }).join('\n\n');
+
+  const selectOptions = entries.slice(0, 25).map(entry => ({
+    label:       entry.name.slice(0, 100),
+    value:       entry.libId,
+    description: (`v${entry.version} • ${client.t('biblioteca.my_pubs_installs', { ...ctx, count: entry.stats.installs })}`).slice(0, 100)
+  }));
+
+  const sel = select(client, userId, selectOptions, client.t('biblioteca.manage_select_placeholder', ctx), async (i) => {
+    await _deferUpdate(i);
+    const selected = entries.find(entry => entry.libId === i.data.values[0]);
+    return _embedsRenderManageEntry(i, client, lib, selected, userId, e);
+  });
+
+  return _edit(interaction, client, cv2Payload([
+    cv2Text(client.t('biblioteca.my_pubs_title', { ...ctx, eCurtida: e.curtida, count: entries.length, lines })),
+    cv2Divider(),
+    row(sel),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.manage_select_footer', ctx)),
+  ], { accentColor: COLOR.library }));
+}
+
+async function _embedsRenderManageEntry(interaction, client, lib, entry, userId, e) {
+  const ctx = localeCtx(interaction);
+  const changelog = entry.lastChangelog ? client.t('biblioteca.manage_last_changelog', { ...ctx, changelog: entry.lastChangelog }) : '';
+
+  const history = entry.versionHistory?.length
+    ? entry.versionHistory.slice(-3).reverse()
+        .map(v => `• \`v${v.version}\` — ${v.changelog || client.t('biblioteca.manage_no_changelog', ctx)}`)
+        .join('\n')
+    : client.t('biblioteca.manage_history_none', ctx);
+
+  const btnEditar = btn(client, userId, client.t('biblioteca.btn_edit', ctx), 2, async (i) => _embedsEditar(i, client, lib, { id: entry.libId }, userId, e));
+
+  const btnAtualizar = btn(client, userId, client.t('biblioteca.btn_update_version', ctx), 1, async (i) => _embedsAtualizar(i, client, lib, { id: entry.libId }, userId, i.guild_id, e));
+
+  const btnApagar = btn(client, userId, client.t('biblioteca.btn_delete', ctx), 4, async (i) => {
+    await _deferUpdate(i);
+    return _embedsApagar(i, client, lib, { id: entry.libId }, userId, e);
+  });
+
+  const btnVoltar = btn(client, userId, client.t('biblioteca.btn_back', ctx), 2, async (i) => {
+    await _deferUpdate(i);
+    return _minhas(i, client, userId, e);
+  });
+
+  return _edit(interaction, client, cv2Payload([
+    cv2Text(`# ${CATEGORY_EMOJI[entry.category] || '📦'} ${entry.name} \`v${entry.version}\`\n${entry.shortDesc}${changelog}`),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.manage_stats', { ...ctx, installs: entry.stats.installs, likes: entry.stats.likes, rating: entry.stats.avgRating, libId: entry.libId })),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.manage_history_label', { ...ctx, history })),
+    cv2Divider(),
+    row(btnEditar, btnAtualizar, btnApagar, btnVoltar),
+  ], { accentColor: COLOR.library }));
+}
+
+async function _embedsDestaques(interaction, client, lib, e) {
+  const { trending, topInstalls, topRated, recent } = await lib.getHighlights();
+  const ctx = localeCtx(interaction);
+
+  const fmt = async (list) => {
+    if (!list.length) return client.t('biblioteca.highlights_none', ctx);
+    const names = await Promise.all(list.map(entry => _resolveAuthorName(lib, entry.authorId, client, ctx, entry.authorName)));
+    return list.map((entry, i) =>
+      `${i + 1}. **${entry.name}** ${client.t('biblioteca.highlights_by', ctx)} ${names[i]} — 📥 ${entry.stats.installs} • ⭐ ${entry.stats.avgRating}`
+    ).join('\n');
+  };
+
+  const [fTrending, fInstalls, fRated, fRecent] = await Promise.all([
+    fmt(trending), fmt(topInstalls), fmt(topRated), fmt(recent)
+  ]);
+
+  return _edit(interaction, client, cv2Payload([
+    cv2Text(`# ${e.festa} ${client.t('biblioteca.highlights_title', ctx)}`),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.highlights_trending', { ...ctx, list: fTrending })),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.highlights_installs', { ...ctx, list: fInstalls })),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.highlights_rated', { ...ctx, list: fRated })),
+    cv2Divider(),
+    cv2Text(client.t('biblioteca.highlights_recent', { ...ctx, list: fRecent })),
+  ], { accentColor: COLOR.library }));
+}
+
+async function _embedsOpenRateModal(interaction, client, lib, libId, userId, e) {
   const ctx = localeCtx(interaction);
   const modal = client.interactions.createModal({
     user:  userId,

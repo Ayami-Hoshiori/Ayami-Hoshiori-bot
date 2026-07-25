@@ -28,6 +28,7 @@ const LogicEngine = require('./System/LogicBuilder/LogicEngine.js')
 const FlowUI = require('./System/LogicBuilder/Flow.js');
 const BirthdayManager = require("./System/BirthdayManager.js");
 const LibraryManager = require("./System/LogicBuilder/LibraryManager.js");
+const MessageLibraryManager = require("./System/MessageLibrary/LibraryManager.js");
 const MissionManager = require('./System/MissionManager.js');
 const SecuritySystem = require("./System/SecuritySystem.js")
 const ActivityAnalyticsSystem = require("./System/Activity/ActivityAnalyticsSystem.js")
@@ -100,6 +101,7 @@ class DiscordGatewayClient extends EventEmitter {
         this.logicEngine = new LogicEngine(this);
         this.logicUI = new FlowUI(this);
         this.libraryManager = new LibraryManager(this);
+        this.messageLibraryManager = new MessageLibraryManager(this);
         this.birthdayManager = new BirthdayManager(this);
         this.missionManager = new MissionManager(this);
         this.security = new SecuritySystem(this);
@@ -517,6 +519,7 @@ async _onReactionAdd(d) {
         await this.gScheduler.boot();
         await this.logicEngine.start();
         await this.libraryManager.start()
+        await this.messageLibraryManager.start()
         console.log("\n|————————————————————————|")
         await this.emit('ready')
     }
