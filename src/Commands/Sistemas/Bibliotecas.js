@@ -284,6 +284,20 @@ async function _deleteFollowUp(interaction, client, messageId) {
   );
 }
 
+/**
+ * Reconhece (ack) a interação de um botão antes de mandar um followup.
+ * Sem isso, o Discord nunca recebe uma resposta inicial dentro dos 3s e
+ * mostra "interação inválida" pro usuário — mesmo que o followup em si
+ * tivesse dado certo depois.
+ */
+async function _ackThenFollowUp(interaction, client, data) {
+  await DiscordRequest(
+    `/interactions/${interaction.id}/${interaction.token}/callback`,
+    { method: 'POST', body: { type: 6 } }
+  );
+  return _followUpEphemeral(interaction, client, data);
+}
+
 
 function cv2Text(content) {
   return { type: 10, content };
@@ -2063,7 +2077,7 @@ async function _embedsRenderDetail(interaction, client, lib, libId, userId, e, e
   const dislikeStyle = userRating?.vote === 'dislike' ? 4 : 2;
 
   const btnPreview = btn(client, userId, client.t('biblioteca.embeds_btn_preview', ctx), 1, async (i) => {
-    return _followUpEphemeral(i, client, _embedsPreviewPayload(entry));
+    return _ackThenFollowUp(i, client, _embedsPreviewPayload(entry));
   }, { emoji: { name: '👁️' } });
 
   const btnInstall = btn(client, userId, client.t('biblioteca.btn_install', ctx), 3, async (i) => {
@@ -2182,7 +2196,7 @@ async function _embedsRenderPublishPanel(interaction, client, lib, saved, userId
 
   if (chosen) {
     const btnPreview = btn(client, userId, client.t('biblioteca.embeds_btn_preview', ctx), 1, async (i) => {
-      return _followUpEphemeral(i, client, _embedsPreviewPayload(chosen));
+      return _ackThenFollowUp(i, client, _embedsPreviewPayload(chosen));
     }, { emoji: { name: '👁️' } });
 
     const btnPublish = btn(client, userId, client.t('biblioteca.btn_publish', ctx), 3, async (i) => {
@@ -2201,27 +2215,24 @@ async function _embedsPublicarModal(interaction, client, lib, userId, guildId, a
   const ctx = localeCtx(interaction);
   const modal = client.interactions.createModal({
     user:  userId,
-    title: client.t('biblioteca.modal_publish_title', ctx),
+    title: client.t('biblioteca.embeds_modal_publish_title', ctx),
     components: [
-      { type: 1, components: [{ type: 4, custom_id: 'name',      label: client.t('biblioteca.modal_field_system_name', ctx),         style: 1, required: true,  max_length: 100,  placeholder: client.t('biblioteca.modal_field_system_name_ph', ctx) }] },
-      { type: 1, components: [{ type: 4, custom_id: 'shortDesc', label: client.t('biblioteca.modal_field_short_desc', ctx),           style: 1, required: true,  max_length: 150,  placeholder: client.t('biblioteca.modal_field_short_desc_ph', ctx) }] },
-      { type: 1, components: [{ type: 4, custom_id: 'fullDesc',  label: client.t('biblioteca.modal_field_full_desc', ctx),            style: 2, required: false, max_length: 2000, placeholder: client.t('biblioteca.modal_field_full_desc_ph', ctx) }] },
-      { type: 1, components: [{ type: 4, custom_id: 'category',  label: client.t('biblioteca.modal_field_category', ctx),             style: 1, required: true,  max_length: 20,   placeholder: client.t('biblioteca.modal_field_category_ph', ctx) }] },
-      { type: 1, components: [{ type: 4, custom_id: 'tags',      label: client.t('biblioteca.modal_field_tags', ctx),                 style: 1, required: false, max_length: 200,  placeholder: client.t('biblioteca.modal_field_tags_ph', ctx) }] }
+      { type: 1, components: [{ type: 4, custom_id: 'name',      label: client.t('biblioteca.embeds_modal_field_name', ctx),         style: 1, required: true,  max_length: 100,  placeholder: client.t('biblioteca.embeds_modal_field_name_ph', ctx) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'shortDesc', label: client.t('biblioteca.embeds_modal_field_short_desc', ctx),    style: 1, required: true,  max_length: 150,  placeholder: client.t('biblioteca.embeds_modal_field_short_desc_ph', ctx) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'fullDesc',  label: client.t('biblioteca.embeds_modal_field_full_desc', ctx),     style: 2, required: false, max_length: 2000, placeholder: client.t('biblioteca.embeds_modal_field_full_desc_ph', ctx) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'category',  label: client.t('biblioteca.embeds_modal_field_category', ctx),      style: 1, required: false, max_length: 20,   placeholder: client.t('biblioteca.embeds_modal_field_category_ph', ctx) }] },
+      { type: 1, components: [{ type: 4, custom_id: 'tags',      label: client.t('biblioteca.embeds_modal_field_tags', ctx),          style: 1, required: false, max_length: 200,  placeholder: client.t('biblioteca.embeds_modal_field_tags_ph', ctx) }] }
     ],
     funcao: async (modalInteraction, _client, fields) => {
-      const category = CATEGORIES.find(c => c.toLowerCase() === fields.category?.trim().toLowerCase());
+      // Categoria é só uma sugestão de organização — se o texto não bater com
+      // nenhuma conhecida (ou vier vazio), cai em "Outros" em vez de bloquear
+      // a publicação do embed.
+      const category = CATEGORIES.find(c => c.toLowerCase() === fields.category?.trim().toLowerCase()) || 'Outros';
 
       await DiscordRequest(
         `/interactions/${modalInteraction.id}/${modalInteraction.token}/callback`,
         { method: 'POST', body: { type: 6 } }
       );
-
-      if (!category) {
-        return _followUpEphemeral(modalInteraction, client, cv2Payload([
-          cv2Text(client.t('biblioteca.invalid_category', { ...ctx, eEmduvida: e.emduvida, list: CATEGORIES.join(', ') }))
-        ], { accentColor: COLOR.danger }));
-      }
 
       try {
         const entry = await lib.publish({
@@ -2318,7 +2329,7 @@ async function _embedsRenderUpdatePanel(interaction, client, lib, saved, userId,
 
   if (chosen) {
     const btnPreview = btn(client, userId, client.t('biblioteca.embeds_btn_preview', ctx), 1, async (i) => {
-      return _followUpEphemeral(i, client, _embedsPreviewPayload(chosen));
+      return _ackThenFollowUp(i, client, _embedsPreviewPayload(chosen));
     }, { emoji: { name: '👁️' } });
 
     const btnConfirm = btn(client, userId, client.t('biblioteca.btn_confirm_update', ctx), 3, async (i) => {

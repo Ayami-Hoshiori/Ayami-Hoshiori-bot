@@ -369,6 +369,7 @@ async function runEmbedEditor(interaction, client, existingDoc = null) {
     channelId     : existingDoc?.channelId ?? null,
     messageId     : existingDoc?.messageId ?? null,
     webhook       : existingDoc?.webhook   ?? null,
+    useWebhook    : existingDoc?.useWebhook ?? false,
     webhookProfile: {
       username : existingDoc?.webhookProfile?.username  ?? null,
       avatarUrl: existingDoc?.webhookProfile?.avatarUrl ?? null
@@ -462,6 +463,7 @@ async function runEmbedEditor(interaction, client, existingDoc = null) {
       actionRows   : state.actionRows,
       components   : [],
       webhook      : webhook ?? state.webhook ?? { id: null, token: null },
+      useWebhook   : state.useWebhook ?? false,
       webhookProfile: state.webhookProfile,
       usedFallback : usedFallback ?? false,
       sendError    : sendError ?? null,
@@ -493,7 +495,8 @@ async function runEmbedEditor(interaction, client, existingDoc = null) {
       payload,
       isCV2        : false,
       cachedWebhook: state.webhook,
-      profile      : state.webhookProfile
+      profile      : state.webhookProfile,
+      useWebhook   : state.useWebhook
     });
 
     state.channelId = channelId;
@@ -530,7 +533,8 @@ async function runEmbedEditor(interaction, client, existingDoc = null) {
         messageId    : state.messageId,
         payload,
         isCV2        : false,
-        cachedWebhook: state.webhook
+        cachedWebhook: state.webhook,
+        useWebhook   : state.useWebhook
       });
       await persistState(state.channelId ?? channelId, state.messageId, state.webhook, result.usedFallback, result.sendError);
       return DiscordRequest(`/webhooks/${interaction.application_id}/${i.token}`, {
@@ -869,10 +873,26 @@ async function runEmbedEditor(interaction, client, existingDoc = null) {
     user: authorId,
     data: { label: "👁️ Preview", style: 2 },
     funcao: async (i) => {
-      await DiscordRequest(`/interactions/${i.id}/${i.token}/callback`, {
-        method: "POST",
-        body  : { type: 4, data: { content: parseString(state.content) || null, embeds: buildEmbeds(true), flags: 64 } }
-      });
+      await DiscordRequest(`/interactions/${i.id}/${i.token}/callback`, { method: "POST", body: { type: 6 } });
+
+      const content = parseString(state.content) || null;
+      const embeds  = buildEmbeds(true);
+
+      // Discord recusa mensagens totalmente vazias (sem content/embeds/components) —
+      // isso é o que fazia o botão de Preview dar "interação inválida" quando o
+      // editor ainda não tinha nenhum texto nem embed preenchida.
+      const body = (!content && !embeds.length)
+        ? { content: "❌ Nada para pré-visualizar ainda — escreva um texto ou preencha uma embed primeiro.", flags: 64 }
+        : { content, embeds, flags: 64 };
+
+      try {
+        await DiscordRequest(`/webhooks/${interaction.application_id}/${i.token}`, { method: "POST", body });
+      } catch (err) {
+        await DiscordRequest(`/webhooks/${interaction.application_id}/${i.token}`, {
+          method: "POST",
+          body: { content: `❌ Erro no preview: ${err?.message ?? "desconhecido"}`, flags: 64 }
+        }).catch(() => {});
+      }
     }
   });
 
@@ -957,25 +977,30 @@ async function runEmbedEditor(interaction, client, existingDoc = null) {
 
   const webhookProfileBtn = client.interactions.createButton({
     user: authorId,
-    data: { label: "🪪 Perfil", style: 2 },
+    data: { label: "🪝 Webhook", style: 2 },
     funcao: async (i) => {
       const modal = client.interactions.createModal({
         user : authorId,
-        title: "Perfil do Webhook",
+        title: "Envio via Webhook",
         components: [
-          { type: 1, components: [{ type: 4, custom_id: "username",  label: "Nome exibido (vazio = nome do bot)",   style: 1, required: false, max_length: 80,  placeholder: "Meu Bot",                          value: state.webhookProfile.username  ?? "" }] },
-          { type: 1, components: [{ type: 4, custom_id: "avatarUrl", label: "URL do Avatar (vazio = avatar do bot)", style: 1, required: false, max_length: 512, placeholder: "https://cdn.discordapp.com/...", value: state.webhookProfile.avatarUrl ?? "" }] }
+          { type: 1, components: [{ type: 4, custom_id: "useWebhook", label: "Enviar via webhook? (sim/não — padrão: não)", style: 1, required: false, max_length: 5, placeholder: "não", value: state.useWebhook ? "sim" : "não" }] },
+          { type: 1, components: [{ type: 4, custom_id: "username",  label: "Nome exibido (só se webhook = sim)",   style: 1, required: false, max_length: 80,  placeholder: "Meu Bot",                          value: state.webhookProfile.username  ?? "" }] },
+          { type: 1, components: [{ type: 4, custom_id: "avatarUrl", label: "URL do Avatar (só se webhook = sim)", style: 1, required: false, max_length: 512, placeholder: "https://cdn.discordapp.com/...", value: state.webhookProfile.avatarUrl ?? "" }] }
         ],
         funcao: async (mi, _, fields) => {
           const username  = fields.username?.trim()  || null;
           const avatarUrl = fields.avatarUrl?.trim() || null;
           if (avatarUrl && !/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i.test(avatarUrl))
             return replyEphemeral(mi, "❌ URL de avatar inválida.");
+          state.useWebhook = /^s(im)?$/i.test(fields.useWebhook?.trim() || "");
           state.webhookProfile.username  = username;
           state.webhookProfile.avatarUrl = avatarUrl;
+          const modeLine = state.useWebhook
+            ? `🪝 Envio: **via webhook**\nNome: ${username ?? "*(padrão)*"}\nAvatar: ${avatarUrl ? `[link](${avatarUrl})` : "*(padrão)*"}`
+            : "🤖 Envio: **direto pelo bot** *(padrão — sem webhook)*";
           await DiscordRequest(`/interactions/${mi.id}/${mi.token}/callback`, {
             method: "POST",
-            body  : { type: 4, data: { content: `✅ Perfil atualizado!\nNome: ${username ?? "*(padrão)*"}\nAvatar: ${avatarUrl ? `[link](${avatarUrl})` : "*(padrão)*"}`, flags: 64 } }
+            body  : { type: 4, data: { content: `✅ Configuração de envio atualizada!\n${modeLine}`, flags: 64 } }
           });
         }
       });
@@ -1027,6 +1052,7 @@ async function runComponentsV2Editor(interaction, client, existingDoc = null) {
     channelId: existingDoc?.channelId ?? null,
     messageId: existingDoc?.messageId ?? null,
     webhook  : existingDoc?.webhook   ?? null,
+    useWebhook: existingDoc?.useWebhook ?? false,
     webhookProfile: {
       username : existingDoc?.webhookProfile?.username  ?? null,
       avatarUrl: existingDoc?.webhookProfile?.avatarUrl ?? null
@@ -1170,6 +1196,7 @@ async function runComponentsV2Editor(interaction, client, existingDoc = null) {
       embeds       : [],
       components   : state.blocks,
       webhook      : webhook ?? state.webhook ?? { id: null, token: null },
+      useWebhook   : state.useWebhook ?? false,
       webhookProfile: state.webhookProfile,
       usedFallback : usedFallback ?? false,
       sendError    : sendError ?? null,
@@ -1189,7 +1216,7 @@ async function runComponentsV2Editor(interaction, client, existingDoc = null) {
     const errors = validatePayload();
     if (errors.length) return replyEphemeral(i, `❌ **Payload inválido:**\n${errors.map(e => `• ${e}`).join("\n")}`);
     const payload = buildApiPayload();
-    const result  = await sendMessage({ channelId, payload, isCV2: true, cachedWebhook: state.webhook, profile: state.webhookProfile });
+    const result  = await sendMessage({ channelId, payload, isCV2: true, cachedWebhook: state.webhook, profile: state.webhookProfile, useWebhook: state.useWebhook });
     state.channelId = channelId;
     state.messageId = result.messageId;
     state.webhook   = result.webhook ?? state.webhook;
@@ -1209,7 +1236,7 @@ async function runComponentsV2Editor(interaction, client, existingDoc = null) {
     if (errors.length) return replyEphemeral(i, `❌ **Payload inválido:**\n${errors.map(e => `• ${e}`).join("\n")}`);
     const payload = buildApiPayload();
     if (state.messageId) {
-      const result = await editMessage({ channelId: state.channelId ?? channelId, messageId: state.messageId, payload, isCV2: true, cachedWebhook: state.webhook });
+      const result = await editMessage({ channelId: state.channelId ?? channelId, messageId: state.messageId, payload, isCV2: true, cachedWebhook: state.webhook, useWebhook: state.useWebhook });
       await persistState(state.channelId ?? channelId, state.messageId, state.webhook, result.usedFallback, result.sendError);
       return DiscordRequest(`/webhooks/${interaction.application_id}/${i.token}`, {
         method: "POST",
@@ -1511,25 +1538,30 @@ async function runComponentsV2Editor(interaction, client, existingDoc = null) {
     });
 
     const webhookProfileBtn = client.interactions.createButton({
-      user: authorId, data: { label: "🪪 Perfil", style: 2 },
+      user: authorId, data: { label: "🪝 Webhook", style: 2 },
       funcao: async (i) => {
         const modal = client.interactions.createModal({
           user : authorId,
-          title: "Perfil do Webhook",
+          title: "Envio via Webhook",
           components: [
-            { type: 1, components: [{ type: 4, custom_id: "username",  label: "Nome exibido (vazio = nome do bot)",    style: 1, required: false, max_length: 80,  placeholder: "Meu Bot",                       value: state.webhookProfile.username  ?? "" }] },
-            { type: 1, components: [{ type: 4, custom_id: "avatarUrl", label: "URL do Avatar (vazio = avatar do bot)", style: 1, required: false, max_length: 512, placeholder: "https://cdn.discordapp.com/...", value: state.webhookProfile.avatarUrl ?? "" }] }
+            { type: 1, components: [{ type: 4, custom_id: "useWebhook", label: "Enviar via webhook? (sim/não — padrão: não)", style: 1, required: false, max_length: 5, placeholder: "não", value: state.useWebhook ? "sim" : "não" }] },
+            { type: 1, components: [{ type: 4, custom_id: "username",  label: "Nome exibido (só se webhook = sim)",    style: 1, required: false, max_length: 80,  placeholder: "Meu Bot",                       value: state.webhookProfile.username  ?? "" }] },
+            { type: 1, components: [{ type: 4, custom_id: "avatarUrl", label: "URL do Avatar (só se webhook = sim)", style: 1, required: false, max_length: 512, placeholder: "https://cdn.discordapp.com/...", value: state.webhookProfile.avatarUrl ?? "" }] }
           ],
           funcao: async (mi, _, fields) => {
             const username  = fields.username?.trim()  || null;
             const avatarUrl = fields.avatarUrl?.trim() || null;
             if (avatarUrl && !/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i.test(avatarUrl))
               return safeEphemeral(mi, "❌ URL de avatar inválida.");
+            state.useWebhook = /^s(im)?$/i.test(fields.useWebhook?.trim() || "");
             state.webhookProfile.username  = username;
             state.webhookProfile.avatarUrl = avatarUrl;
+            const modeLine = state.useWebhook
+              ? `🪝 Envio: **via webhook**\nNome: ${username ?? "*(padrão)*"}\nAvatar: ${avatarUrl ? `[link](${avatarUrl})` : "*(padrão)*"}`
+              : "🤖 Envio: **direto pelo bot** *(padrão — sem webhook)*";
             await DiscordRequest(`/interactions/${mi.id}/${mi.token}/callback`, {
               method: "POST",
-              body  : { type: 4, data: { content: `✅ Perfil atualizado!\nNome: ${username ?? "*(padrão)*"}\nAvatar: ${avatarUrl ? `[link](${avatarUrl})` : "*(padrão)*"}`, flags: 64 } }
+              body  : { type: 4, data: { content: `✅ Configuração de envio atualizada!\n${modeLine}`, flags: 64 } }
             });
           }
         });

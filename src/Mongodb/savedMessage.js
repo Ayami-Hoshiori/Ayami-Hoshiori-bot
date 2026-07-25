@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 const SavedMessageSchema = new mongoose.Schema(
   {
     guildId  : { type: String, required: true, index: true },
-    channelId: { type: String, required: true },
+    channelId: { type: String, default: null },
     messageId: { type: String, default: null },
 
     type: {
@@ -22,6 +22,7 @@ const SavedMessageSchema = new mongoose.Schema(
       id   : { type: String, default: null },
       token: { type: String, default: null }
     },
+    useWebhook: { type: Boolean, default: false },
 
     webhookProfile: {
       username : { type: String, default: null },

@@ -85,7 +85,18 @@ async function editViaBot(channelId, messageId, payload) {
   return { ok: true };
 }
 
-async function sendMessage({ channelId, payload, isCV2, cachedWebhook, profile = null }) {
+async function sendMessage({ channelId, payload, isCV2, cachedWebhook, profile = null, useWebhook = false }) {
+  // Webhook agora é opt-in: por padrão a própria Ayami envia a mensagem.
+  // Só tenta webhook se o usuário pediu explicitamente (useWebhook === true).
+  if (!useWebhook) {
+    try {
+      const result = await sendViaBot(channelId, payload);
+      return { webhook: null, messageId: result.messageId, usedFallback: false, sendError: null };
+    } catch (err) {
+      return { webhook: null, messageId: null, usedFallback: false, sendError: `Bot send failed: ${err?.message ?? err}` };
+    }
+  }
+
   let webhook      = null;
   let usedFallback = false;
   let sendError    = null;
@@ -129,8 +140,8 @@ async function sendMessage({ channelId, payload, isCV2, cachedWebhook, profile =
   }
 }
 
-async function editMessage({ channelId, messageId, payload, isCV2, cachedWebhook }) {
-  if (cachedWebhook?.id && cachedWebhook?.token && messageId) {
+async function editMessage({ channelId, messageId, payload, isCV2, cachedWebhook, useWebhook = false }) {
+  if (useWebhook && cachedWebhook?.id && cachedWebhook?.token && messageId) {
     try {
       await editViaWebhook(cachedWebhook, messageId, payload, isCV2);
       return { ok: true, usedFallback: false, sendError: null };

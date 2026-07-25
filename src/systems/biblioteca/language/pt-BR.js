@@ -267,4 +267,16 @@ module.exports = [
   { id: "publish_type_chooser_title", render: (ctx) => `# ${ctx.eAnimada} O que você quer publicar na biblioteca?` },
   { id: "publish_type_flow", render: () => "Fluxo(s)" },
   { id: "publish_type_message", render: () => "Embed / Components V2" },
+
+  { id: "embeds_modal_publish_title", render: () => "Publicar Embed/Components V2" },
+  { id: "embeds_modal_field_name", render: () => "Nome do embed" },
+  { id: "embeds_modal_field_name_ph", render: () => "Ex: Cartão de boas-vindas" },
+  { id: "embeds_modal_field_short_desc", render: () => "Descrição curta" },
+  { id: "embeds_modal_field_short_desc_ph", render: () => "O que esse embed faz, em 1 frase" },
+  { id: "embeds_modal_field_full_desc", render: () => "Descrição completa (opcional)" },
+  { id: "embeds_modal_field_full_desc_ph", render: () => "Detalhes, como usar, variações..." },
+  { id: "embeds_modal_field_category", render: () => "Categoria (opcional)" },
+  { id: "embeds_modal_field_category_ph", render: () => "Ex: Comunidade — vazio = Outros" },
+  { id: "embeds_modal_field_tags", render: () => "Tags (opcional, separadas por vírgula)" },
+  { id: "embeds_modal_field_tags_ph", render: () => "boas-vindas, anúncio, evento" },
 ];

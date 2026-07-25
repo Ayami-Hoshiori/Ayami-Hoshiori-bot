@@ -265,4 +265,16 @@ module.exports = [
   { id: "publish_type_chooser_title", render: (ctx) => `# ${ctx.eAnimada} What do you want to publish to the library?` },
   { id: "publish_type_flow", render: () => "Flow(s)" },
   { id: "publish_type_message", render: () => "Embed / Components V2" },
+
+  { id: "embeds_modal_publish_title", render: () => "Publish Embed/Components V2" },
+  { id: "embeds_modal_field_name", render: () => "Embed name" },
+  { id: "embeds_modal_field_name_ph", render: () => "e.g. Welcome card" },
+  { id: "embeds_modal_field_short_desc", render: () => "Short description" },
+  { id: "embeds_modal_field_short_desc_ph", render: () => "What this embed does, in one sentence" },
+  { id: "embeds_modal_field_full_desc", render: () => "Full description (optional)" },
+  { id: "embeds_modal_field_full_desc_ph", render: () => "Details, how to use it, variations..." },
+  { id: "embeds_modal_field_category", render: () => "Category (optional)" },
+  { id: "embeds_modal_field_category_ph", render: () => "e.g. Community — empty = Other" },
+  { id: "embeds_modal_field_tags", render: () => "Tags (optional, comma separated)" },
+  { id: "embeds_modal_field_tags_ph", render: () => "welcome, announcement, event" },
 ];
