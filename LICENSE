@@ -1,0 +1,88 @@
+LICENÇA PROPRIETÁRIA — TODOS OS DIREITOS RESERVADOS
+Projeto: Ayami Hoshiori (site, dashboard e bot)
+Copyright (c) 2026 Ayami-Hoshiori. Todos os direitos reservados.
+
+1. OBJETO
+
+Esta licença se aplica a todo o conteúdo deste repositório, incluindo,
+mas não se limitando a: código-fonte do bot (comandos, sistemas, integrações
+com Discord), código-fonte do site e dashboard (backend, rotas, views),
+scripts, folhas de estilo (CSS), arquivos de configuração, estrutura de
+banco de dados, documentação, imagens, ícones e quaisquer outros arquivos
+presentes neste repositório ("o Software").
+
+2. DISPONIBILIZAÇÃO PÚBLICA
+
+O Software é disponibilizado publicamente apenas para fins de consulta,
+estudo pessoal e avaliação técnica do código. A disponibilização pública
+deste repositório NÃO constitui, em nenhuma hipótese, autorização, licença
+implícita ou concessão de qualquer direito de uso, cópia, modificação ou
+distribuição.
+
+3. PROIBIÇÕES EXPRESSAS
+
+Sem autorização prévia e por escrito do autor, é expressamente proibido:
+
+  a) Copiar, no todo ou em parte, qualquer arquivo deste repositório;
+  b) Executar, instalar, hospedar ou disponibilizar o Software (ou versão
+     modificada dele) em servidor próprio ou de terceiros;
+  c) Modificar, adaptar, traduzir ou criar obras derivadas a partir do
+     Software;
+  d) Redistribuir o Software, seu código-fonte ou partes dele, de forma
+     gratuita ou paga;
+  e) Utilizar qualquer parte do Software (incluindo trechos de código,
+     lógica de sistemas, estrutura de banco de dados, design de interface,
+     nomes de rotas ou identidade visual) em outros projetos, comerciais
+     ou não;
+  f) Remover, ocultar ou alterar avisos de autoria, marca ("Ayami Hoshiori")
+     ou esta licença presentes no Software;
+  g) Realizar engenharia reversa com o objetivo de recriar funcionalidades
+     equivalentes em outro produto ou serviço;
+  h) Utilizar o nome "Ayami Hoshiori", sua identidade visual, mascote ou
+     marca associada para identificar outro bot, site ou serviço, mesmo
+     que o código seja reescrito do zero.
+
+4. USO DE FORKS PARA CONTRIBUIÇÃO
+
+Forks e clones para fins exclusivos de análise de código, correção de bugs
+ou sugestão de melhorias via Pull Request ao repositório original são
+tolerados, desde que não envolvam execução pública, distribuição ou uso
+fora do escopo de contribuição ao projeto original. O autor pode revogar
+essa tolerância a qualquer momento.
+
+5. DADOS DE TERCEIROS
+
+Este Software pode processar dados de usuários do Discord (IDs, mensagens,
+configurações de servidor, entre outros). A cópia ou uso não autorizado do
+Software não transfere nenhum direito sobre esses dados, que permanecem
+sob a responsabilidade e titularidade do autor original e da instância
+oficial do serviço.
+
+6. VIOLAÇÃO
+
+O uso, cópia, modificação, distribuição ou hospedagem não autorizada do
+Software constitui violação de direitos autorais, sujeitando o infrator
+às penalidades cíveis e criminais previstas na legislação aplicável,
+incluindo a Lei nº 9.610/1998 (Lei de Direitos Autorais) e a Lei nº
+9.609/1998 (Lei de Software), sem prejuízo de outras medidas legais
+cabíveis, como notificação extrajudicial, pedido de remoção (DMCA/takedown)
+junto às plataformas de hospedagem e ação por perdas e danos.
+
+7. ISENÇÃO DE GARANTIAS
+
+O Software é disponibilizado "como está", sem garantias de qualquer tipo,
+expressas ou implícitas, incluindo, mas não se limitando a garantias de
+funcionamento, adequação a um propósito específico ou ausência de erros.
+O autor não se responsabiliza por danos decorrentes do uso, autorizado ou
+não, do Software.
+
+8. CONTATO E AUTORIZAÇÕES
+
+Pedidos de autorização de uso, licenciamento comercial, parcerias ou
+denúncias de uso indevido devem ser direcionados diretamente ao autor
+através dos canais oficiais do projeto Ayami Hoshiori.
+
+---
+
+Esta licença deve ser interpretada da forma mais ampla possível em favor
+da proteção dos direitos do autor sobre o Software.
